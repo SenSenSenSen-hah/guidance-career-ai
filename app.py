@@ -5,6 +5,10 @@ import json
 import base64
 from datetime import datetime
 from fpdf import FPDF
+import requests
+from bs4 import BeautifulSoup
+import re
+import time
 
 # Page configuration
 st.set_page_config(
@@ -36,8 +40,143 @@ st.markdown("""
         border-left: 4px solid #1f77b4;
         margin-bottom: 1rem;
     }
+    .scraping-info {
+        background-color: #e8f5e8;
+        border-left: 4px solid #28a745;
+        padding: 1rem;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# ==================== WEB SCRAPING FUNCTIONS ====================
+class WebScraper:
+    def __init__(self):
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+    
+    def scrape_university_info(self, major_name):
+        """Scrape informasi jurusan dari berbagai sumber"""
+        try:
+            # Format nama jurusan untuk pencarian
+            search_query = f"jurusan {major_name} universitas indonesia"
+            
+            # Sumber-sumber yang akan di-scrape
+            sources = [
+                self._scrape_from_wikipedia(major_name),
+                self._scrape_from_lamptk(major_name),
+                self._scrape_from_simak(major_name)
+            ]
+            
+            # Filter hasil yang valid
+            valid_sources = [source for source in sources if source and source.get('description')]
+            
+            if valid_sources:
+                return valid_sources[0]  # Return yang pertama yang valid
+            else:
+                return self._generate_fallback_info(major_name)
+                
+        except Exception as e:
+            st.error(f"Error scraping: {str(e)}")
+            return self._generate_fallback_info(major_name)
+    
+    def _scrape_from_wikipedia(self, major_name):
+        """Scrape dari Wikipedia Indonesia"""
+        try:
+            url = f"https://id.wikipedia.org/wiki/{major_name.replace(' ', '_')}"
+            response = requests.get(url, headers=self.headers, timeout=10)
+            
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Ambil paragraf pertama
+                content_div = soup.find('div', {'class': 'mw-parser-output'})
+                if content_div:
+                    paragraphs = content_div.find_all('p')
+                    for p in paragraphs:
+                        text = p.get_text().strip()
+                        if len(text) > 100:  # Ambil yang cukup panjang
+                            return {
+                                'description': text[:500] + '...' if len(text) > 500 else text,
+                                'source': 'Wikipedia',
+                                'url': url
+                            }
+            return None
+        except:
+            return None
+    
+    def _scrape_from_lamptk(self, major_name):
+        """Scrape dari website LAM-PTK (contoh)"""
+        try:
+            # Contoh scraping dari situs pendidikan
+            url = f"https://www.zenius.net/blog/{major_name.replace(' ', '-').lower()}"
+            response = requests.get(url, headers=self.headers, timeout=10)
+            
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Cari konten artikel
+                article_content = soup.find('article')
+                if article_content:
+                    paragraphs = article_content.find_all('p')
+                    for p in paragraphs:
+                        text = p.get_text().strip()
+                        if len(text) > 50:
+                            return {
+                                'description': text[:400] + '...' if len(text) > 400 else text,
+                                'source': 'Zenius Education',
+                                'url': url
+                            }
+            return None
+        except:
+            return None
+    
+    def _scrape_from_simak(self, major_name):
+        """Scrape dari website SIMAK (contoh)"""
+        try:
+            # Contoh scraping dari situs universitas
+            url = f"https://www.quipper.com/id/blog/{major_name.replace(' ', '-').lower()}"
+            response = requests.get(url, headers=self.headers, timeout=10)
+            
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Cari konten blog
+                blog_content = soup.find('div', class_='blog-content')
+                if blog_content:
+                    paragraphs = blog_content.find_all('p')
+                    for p in paragraphs:
+                        text = p.get_text().strip()
+                        if len(text) > 50:
+                            return {
+                                'description': text[:400] + '...' if len(text) > 400 else text,
+                                'source': 'Quipper',
+                                'url': url
+                            }
+            return None
+        except:
+            return None
+    
+    def _generate_fallback_info(self, major_name):
+        """Generate informasi fallback jika scraping gagal"""
+        fallback_descriptions = {
+            'Teknik Informatika': 'Jurusan Teknik Informatika mempelajari pengembangan perangkat lunak, artificial intelligence, dan sistem komputer. Lulusannya bekerja sebagai software engineer, data scientist, dan IT consultant.',
+            'Kedokteran': 'Jurusan Kedokteran mempelajari ilmu medis, anatomi manusia, dan praktik klinis. Lulusannya menjadi dokter umum atau spesialis di rumah sakit dan klinik.',
+            'Manajemen': 'Jurusan Manajemen fokus pada pengelolaan bisnis, pemasaran, dan sumber daya manusia. Lulusannya bekerja sebagai manajer, konsultan bisnis, atau entrepreneur.',
+            'Psikologi': 'Jurusan Psikologi mempelajari perilaku manusia dan proses mental. Lulusannya bekerja sebagai psikolog klinis, HR specialist, atau konselor.',
+            'Sastra Inggris': 'Jurusan Sastra Inggris mempelajari bahasa, sastra, dan budaya Inggris. Lulusannya bekerja sebagai penerjemah, content writer, atau diplomat.'
+        }
+        
+        description = fallback_descriptions.get(major_name, 
+            f"Jurusan {major_name} merupakan program studi yang relevan dengan minat dan bakat Anda. Disarankan untuk mencari informasi lebih lanjut dari sumber terpercaya.")
+        
+        return {
+            'description': description,
+            'source': 'Sistem AI Career Guidance',
+            'url': '#'
+        }
 
 # ==================== PDF REPORT GENERATOR ====================
 class PDFReport(FPDF):
@@ -59,12 +198,18 @@ class PDFReport(FPDF):
         self.cell(0, 10, title, 0, 1, 'L', 1)
         self.ln(5)
     
-    def add_recommendation_card(self, rank, major, score, reasoning, careers):
+    def add_recommendation_card(self, rank, major, score, reasoning, careers, scraped_info=None):
         self.set_font('Arial', 'B', 12)
         self.cell(0, 8, f'{rank}. {major} - Skor: {score}%', 0, 1)
         
         self.set_font('Arial', '', 10)
         self.multi_cell(0, 6, f'Alasan: {reasoning}')
+        
+        # Tambahkan informasi dari web scraping jika ada
+        if scraped_info and scraped_info.get('description'):
+            self.set_font('Arial', 'I', 9)
+            self.multi_cell(0, 6, f"Info: {scraped_info['description']}")
+            self.cell(0, 6, f"Sumber: {scraped_info.get('source', 'Unknown')}", 0, 1)
         
         self.set_font('Arial', 'I', 10)
         self.cell(0, 6, 'Peluang Karir:', 0, 1)
@@ -74,7 +219,7 @@ class PDFReport(FPDF):
         
         self.ln(5)
 
-def generate_pdf_report(user_data, recommendations):
+def generate_pdf_report(user_data, recommendations, scraped_data):
     pdf = PDFReport()
     pdf.add_page()
     
@@ -95,12 +240,14 @@ def generate_pdf_report(user_data, recommendations):
             pdf.cell(20)  # indent
             pdf.cell(0, 6, f'{subject}: {score}', 0, 1)
     
-    # Recommendations
+    # Recommendations dengan data scraping
     pdf.add_section_title('🎓 Rekomendasi Jurusan')
     for i, rec in enumerate(recommendations, 1):
+        scraped_info = scraped_data.get(rec['major'])
         pdf.add_recommendation_card(
             i, rec['major'], rec['score'], 
-            rec['reasoning'], rec['careers']
+            rec['reasoning'], rec['careers'],
+            scraped_info
         )
     
     # Career Plan
@@ -157,6 +304,8 @@ class CareerAI:
             'Manajemen': ['Manajer Perusahaan', 'Entrepreneur', 'Konsultan Bisnis'],
             'Psikologi': ['Psikolog Klinis', 'HR Specialist', 'Konselor']
         }
+        
+        self.scraper = WebScraper()
     
     def calculate_match_score(self, user_data, major):
         """Calculate match score between user and major"""
@@ -212,6 +361,10 @@ class CareerAI:
             reasoning_parts.append("relevan dengan kemampuan akademik")
         
         return f"Rekomendasi {major['name']} karena " + ", ".join(reasoning_parts)
+    
+    def scrape_additional_info(self, major_name):
+        """Scrape additional information for a major"""
+        return self.scraper.scrape_university_info(major_name)
 
 # ==================== STREAMLIT UI COMPONENTS ====================
 def main():
@@ -223,6 +376,8 @@ def main():
         st.session_state.ai_system = CareerAI()
         st.session_state.current_step = 0
         st.session_state.user_data = {}
+        st.session_state.scraped_data = {}
+        st.session_state.scraping_done = False
     
     # Sidebar navigation
     st.sidebar.title("Navigasi")
@@ -334,6 +489,15 @@ def render_results():
     # Generate recommendations
     recommendations = st.session_state.ai_system.generate_recommendations(st.session_state.user_data)
     
+    # Web scraping untuk informasi tambahan
+    if not st.session_state.scraping_done:
+        with st.spinner("🕸️ Mengumpulkan informasi terbaru dari web..."):
+            for rec in recommendations:
+                scraped_info = st.session_state.ai_system.scrape_additional_info(rec['major'])
+                st.session_state.scraped_data[rec['major']] = scraped_info
+                time.sleep(1)  # Delay untuk menghormati server
+            st.session_state.scraping_done = True
+    
     st.subheader("📊 Rekomendasi Jurusan Terbaik untuk Anda:")
     
     for i, rec in enumerate(recommendations, 1):
@@ -344,7 +508,7 @@ def render_results():
             st.markdown(f"**Prospek Karir:** {rec['prospects']}")
             st.markdown('</div>', unsafe_allow_html=True)
             
-            with st.expander("🔍 Lihat Detail"):
+            with st.expander("🔍 Lihat Detail & Informasi Web"):
                 st.write(f"**Alasan:** {rec['reasoning']}")
                 
                 st.write("**Keterampilan yang Dibutuhkan:**")
@@ -354,6 +518,15 @@ def render_results():
                 st.write("**Peluang Karir:**")
                 for career in rec['careers']:
                     st.write(f"• {career}")
+                
+                # Tampilkan informasi dari web scraping
+                scraped_info = st.session_state.scraped_data.get(rec['major'])
+                if scraped_info:
+                    st.markdown('<div class="scraping-info">', unsafe_allow_html=True)
+                    st.write("**🌐 Informasi dari Web:**")
+                    st.write(scraped_info['description'])
+                    st.write(f"*Sumber: {scraped_info['source']}*")
+                    st.markdown('</div>', unsafe_allow_html=True)
     
     # Career planning
     st.subheader("📅 Rencana Pengembangan Karir")
@@ -396,6 +569,7 @@ def render_results():
             'interests': st.session_state.user_data.get('interests', {}),
             'competencies': st.session_state.user_data.get('competencies', {}),
             'recommendations': recommendations,
+            'scraped_data': st.session_state.scraped_data,
             'generated_at': datetime.now().isoformat()
         }
         
@@ -416,7 +590,8 @@ def render_results():
                 with st.spinner("Membuat laporan PDF..."):
                     pdf_bytes = generate_pdf_report(
                         st.session_state.user_data, 
-                        recommendations
+                        recommendations,
+                        st.session_state.scraped_data
                     )
                     
                     st.download_button(
