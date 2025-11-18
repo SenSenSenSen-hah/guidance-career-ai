@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import json
+import base64
+from datetime import datetime
+from fpdf import FPDF
 
 # Page configuration
 st.set_page_config(
@@ -26,9 +29,106 @@ st.markdown("""
         border-radius: 10px;
         margin-bottom: 1rem;
     }
+    .step-card {
+        background-color: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        border-left: 4px solid #1f77b4;
+        margin-bottom: 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
+# ==================== PDF REPORT GENERATOR ====================
+class PDFReport(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 16)
+        self.cell(0, 10, 'LAPORAN KONSULTASI KARIR', 0, 1, 'C')
+        self.set_font('Arial', 'I', 12)
+        self.cell(0, 10, 'AI Career Guidance Platform', 0, 1, 'C')
+        self.ln(10)
+    
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Halaman {self.page_no()}', 0, 0, 'C')
+    
+    def add_section_title(self, title):
+        self.set_font('Arial', 'B', 14)
+        self.set_fill_color(200, 220, 255)
+        self.cell(0, 10, title, 0, 1, 'L', 1)
+        self.ln(5)
+    
+    def add_recommendation_card(self, rank, major, score, reasoning, careers):
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, f'{rank}. {major} - Skor: {score}%', 0, 1)
+        
+        self.set_font('Arial', '', 10)
+        self.multi_cell(0, 6, f'Alasan: {reasoning}')
+        
+        self.set_font('Arial', 'I', 10)
+        self.cell(0, 6, 'Peluang Karir:', 0, 1)
+        for career in careers:
+            self.cell(10)  # indent
+            self.cell(0, 6, f'• {career}', 0, 1)
+        
+        self.ln(5)
+
+def generate_pdf_report(user_data, recommendations):
+    pdf = PDFReport()
+    pdf.add_page()
+    
+    # Header
+    pdf.add_section_title('📋 Data Peserta')
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(0, 8, f'Nama: {user_data.get("name", "N/A")}', 0, 1)
+    pdf.cell(0, 8, f'Peminatan: {user_data.get("stream", "N/A")}', 0, 1)
+    pdf.cell(0, 8, f'Tanggal Konsultasi: {datetime.now().strftime("%d/%m/%Y %H:%M")}', 0, 1)
+    
+    # Academic Scores (if available)
+    if user_data.get('academic_scores'):
+        pdf.ln(5)
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 8, 'Nilai Akademik:', 0, 1)
+        pdf.set_font('Arial', '', 10)
+        for subject, score in user_data['academic_scores'].items():
+            pdf.cell(20)  # indent
+            pdf.cell(0, 6, f'{subject}: {score}', 0, 1)
+    
+    # Recommendations
+    pdf.add_section_title('🎓 Rekomendasi Jurusan')
+    for i, rec in enumerate(recommendations, 1):
+        pdf.add_recommendation_card(
+            i, rec['major'], rec['score'], 
+            rec['reasoning'], rec['careers']
+        )
+    
+    # Career Plan
+    pdf.add_section_title('📅 Rencana Pengembangan Karir')
+    
+    pdf.set_font('Arial', 'B', 11)
+    pdf.cell(0, 8, 'Jangka Pendek (1-2 tahun):', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 6, '• Fokus pada mata pelajaran prasyarat\n• Ikuti ekstrakurikuler yang relevan\n• Eksplorasi melalui kursus online')
+    
+    pdf.set_font('Arial', 'B', 11)
+    pdf.cell(0, 8, 'Jangka Menengah (2-4 tahun):', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 6, '• Persiapan masuk perguruan tinggi\n• Cari pengalaman magang atau volunteering\n• Bangun jaringan profesional')
+    
+    pdf.set_font('Arial', 'B', 11)
+    pdf.cell(0, 8, 'Jangka Panjang (4+ tahun):', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 6, '• Selesaikan pendidikan tinggi\n• Dapatkan sertifikasi profesional\n• Terus belajar dan beradaptasi dengan perkembangan')
+    
+    # Notes
+    pdf.add_section_title('💡 Catatan Penting')
+    pdf.set_font('Arial', 'I', 10)
+    pdf.multi_cell(0, 6, 'Hasil ini merupakan rekomendasi berdasarkan data yang diberikan. Disarankan untuk berkonsultasi lebih lanjut dengan konselor karir untuk keputusan yang lebih tepat.')
+    
+    return pdf.output(dest='S').encode('latin1')
+
+# ==================== CAREER AI SYSTEM ====================
 class CareerAI:
     def __init__(self):
         self.majors_data = {
@@ -57,24 +157,6 @@ class CareerAI:
             'Manajemen': ['Manajer Perusahaan', 'Entrepreneur', 'Konsultan Bisnis'],
             'Psikologi': ['Psikolog Klinis', 'HR Specialist', 'Konselor']
         }
-    
-    def analyze_interests(self, text):
-        """Simple interest analysis based on keywords"""
-        interests = []
-        text_lower = text.lower()
-        
-        interest_keywords = {
-            'teknologi': ['programming', 'coding', 'komputer', 'teknologi', 'software'],
-            'sains': ['penelitian', 'eksperimen', 'sains', 'ilmiah'],
-            'seni': ['seni', 'desain', 'kreatif', 'gambar'],
-            'sosial': ['masyarakat', 'sosial', 'membantu', 'komunitas']
-        }
-        
-        for interest, keywords in interest_keywords.items():
-            if any(keyword in text_lower for keyword in keywords):
-                interests.append(interest)
-        
-        return interests
     
     def calculate_match_score(self, user_data, major):
         """Calculate match score between user and major"""
@@ -131,6 +213,7 @@ class CareerAI:
         
         return f"Rekomendasi {major['name']} karena " + ", ".join(reasoning_parts)
 
+# ==================== STREAMLIT UI COMPONENTS ====================
 def main():
     st.markdown('<h1 class="main-header">🎓 AI Career Guidance Platform</h1>', unsafe_allow_html=True)
     st.markdown("**Sistem Bimbingan Karir Berbasis AI untuk Siswa Kelas 12**")
@@ -160,6 +243,7 @@ def main():
         render_results()
 
 def render_personal_info():
+    st.markdown('<div class="step-card">', unsafe_allow_html=True)
     st.header("📝 Data Diri")
     
     with st.form("personal_info"):
@@ -175,8 +259,10 @@ def render_personal_info():
                 st.rerun()
             else:
                 st.error("❌ Harap isi nama lengkap")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_academic_data():
+    st.markdown('<div class="step-card">', unsafe_allow_html=True)
     st.header("📊 Data Akademik")
     
     stream = st.session_state.user_data.get('stream', 'IPA')
@@ -197,6 +283,7 @@ def render_academic_data():
             st.success("✅ Data akademik berhasil disimpan!")
             st.session_state.current_step = 2
             st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def get_subjects_by_stream(stream):
     subjects = {
@@ -207,6 +294,7 @@ def get_subjects_by_stream(stream):
     return subjects.get(stream, [])
 
 def render_interests_competencies():
+    st.markdown('<div class="step-card">', unsafe_allow_html=True)
     st.header("🎯 Minat & Kompetensi")
     
     with st.form("interests_competencies"):
@@ -234,6 +322,7 @@ def render_interests_competencies():
             st.success("✅ Data berhasil disimpan! Melihat rekomendasi...")
             st.session_state.current_step = 3
             st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def render_results():
     st.header("🎓 Hasil Rekomendasi Karir")
@@ -289,24 +378,59 @@ def render_results():
         st.write("• Dapatkan sertifikasi")
         st.write("• Terus belajar dan beradaptasi")
     
-    # Export option
-    st.subheader("💾 Export Hasil")
-    if st.button("📥 Download Hasil Konsultasi"):
+    # ==================== EXPORT SECTION ====================
+    st.subheader("💾 Export Hasil Konsultasi")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # JSON Export
+        st.write("**📄 Format Data (JSON)**")
+        st.write("Untuk analisis data lanjutan")
         export_data = {
             'user_info': {
                 'name': st.session_state.user_data.get('name'),
                 'stream': st.session_state.user_data.get('stream')
             },
+            'academic_scores': st.session_state.user_data.get('academic_scores', {}),
+            'interests': st.session_state.user_data.get('interests', {}),
+            'competencies': st.session_state.user_data.get('competencies', {}),
             'recommendations': recommendations,
-            'generated_at': pd.Timestamp.now().isoformat()
+            'generated_at': datetime.now().isoformat()
         }
         
         st.download_button(
-            label="📄 Download JSON File",
-            data=json.dumps(export_data, indent=2),
+            label="📥 Download JSON",
+            data=json.dumps(export_data, indent=2, ensure_ascii=False),
             file_name="hasil_konsultasi_karir.json",
             mime="application/json"
         )
+    
+    with col2:
+        # PDF Export
+        st.write("**📊 Laporan Lengkap (PDF)**")
+        st.write("Untuk presentasi dan dokumentasi")
+        
+        if st.button("🔄 Generate PDF Report", key="generate_pdf"):
+            try:
+                with st.spinner("Membuat laporan PDF..."):
+                    pdf_bytes = generate_pdf_report(
+                        st.session_state.user_data, 
+                        recommendations
+                    )
+                    
+                    st.download_button(
+                        label="📥 Download PDF",
+                        data=pdf_bytes,
+                        file_name="laporan_konsultasi_karir.pdf",
+                        mime="application/pdf",
+                        key="download_pdf"
+                    )
+                    
+                    st.success("✅ Laporan PDF berhasil dibuat! Klik 'Download PDF' di atas.")
+                    
+            except Exception as e:
+                st.error(f"❌ Error membuat PDF: {str(e)}")
 
 if __name__ == "__main__":
     main()
