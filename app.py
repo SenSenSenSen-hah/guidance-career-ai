@@ -19,75 +19,117 @@ st.markdown("""
         text-align: center;
         margin-bottom: 2rem;
     }
-    .success-box {
-        background-color: #d4edda;
-        border: 1px solid #c3e6cb;
-        border-radius: 5px;
-        padding: 15px;
-        margin: 10px 0;
+    .recommendation-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
-class SimpleCareerAI:
+class CareerAI:
     def __init__(self):
         self.majors_data = {
-            'IPA': ['Teknik Informatika', 'Kedokteran', 'Teknik Elektro', 'Farmasi', 'Arsitektur'],
-            'IPS': ['Manajemen', 'Akuntansi', 'Ilmu Komunikasi', 'Psikologi', 'Hukum'],
-            'Bahasa': ['Sastra Inggris', 'Sastra Indonesia', 'Penerjemahan', 'Ilmu Perpustakaan']
+            'IPA': [
+                {'name': 'Teknik Informatika', 'skills': ['Programming', 'Matematika', 'Logika'], 'prospects': 'Sangat Tinggi'},
+                {'name': 'Kedokteran', 'skills': ['Biologi', 'Kimia', 'Analisis'], 'prospects': 'Tinggi'},
+                {'name': 'Teknik Elektro', 'skills': ['Fisika', 'Matematika', 'Problem Solving'], 'prospects': 'Tinggi'},
+                {'name': 'Farmasi', 'skills': ['Kimia', 'Biologi', 'Ketelitian'], 'prospects': 'Tinggi'}
+            ],
+            'IPS': [
+                {'name': 'Manajemen', 'skills': ['Komunikasi', 'Analisis', 'Kepemimpinan'], 'prospects': 'Tinggi'},
+                {'name': 'Akuntansi', 'skills': ['Matematika', 'Ketelitian', 'Analisis'], 'prospects': 'Tinggi'},
+                {'name': 'Ilmu Komunikasi', 'skills': ['Kreativitas', 'Komunikasi', 'Writing'], 'prospects': 'Sedang'},
+                {'name': 'Psikologi', 'skills': ['Empati', 'Analisis', 'Komunikasi'], 'prospects': 'Tinggi'}
+            ],
+            'Bahasa': [
+                {'name': 'Sastra Inggris', 'skills': ['Bahasa', 'Analisis', 'Writing'], 'prospects': 'Sedang'},
+                {'name': 'Sastra Indonesia', 'skills': ['Bahasa', 'Kreativitas', 'Analisis'], 'prospects': 'Sedang'},
+                {'name': 'Penerjemahan', 'skills': ['Bahasa', 'Ketelitian', 'Komunikasi'], 'prospects': 'Tinggi'}
+            ]
         }
         
         self.career_paths = {
             'Teknik Informatika': ['Software Engineer', 'Data Scientist', 'Web Developer'],
             'Kedokteran': ['Dokter Umum', 'Dokter Spesialis', 'Peneliti Medis'],
-            'Manajemen': ['Manajer Perusahaan', 'Entrepreneur', 'Konsultan Bisnis']
+            'Manajemen': ['Manajer Perusahaan', 'Entrepreneur', 'Konsultan Bisnis'],
+            'Psikologi': ['Psikolog Klinis', 'HR Specialist', 'Konselor']
         }
     
+    def analyze_interests(self, text):
+        """Simple interest analysis based on keywords"""
+        interests = []
+        text_lower = text.lower()
+        
+        interest_keywords = {
+            'teknologi': ['programming', 'coding', 'komputer', 'teknologi', 'software'],
+            'sains': ['penelitian', 'eksperimen', 'sains', 'ilmiah'],
+            'seni': ['seni', 'desain', 'kreatif', 'gambar'],
+            'sosial': ['masyarakat', 'sosial', 'membantu', 'komunitas']
+        }
+        
+        for interest, keywords in interest_keywords.items():
+            if any(keyword in text_lower for keyword in keywords):
+                interests.append(interest)
+        
+        return interests
+    
+    def calculate_match_score(self, user_data, major):
+        """Calculate match score between user and major"""
+        score = 60  # Base score
+        
+        # Academic match (simplified)
+        if user_data.get('academic_scores'):
+            score += 10
+        
+        # Interest match
+        if user_data.get('interests'):
+            interest_score = sum(user_data['interests'].values()) * 1.5
+            score += min(interest_score, 20)
+        
+        # Competency match
+        if user_data.get('competencies'):
+            competency_score = sum(user_data['competencies'].values()) * 1.5
+            score += min(competency_score, 10)
+        
+        return min(score, 95)
+    
     def generate_recommendations(self, user_data):
+        """Generate career recommendations"""
         recommendations = []
         stream = user_data.get('stream', 'IPA')
         
-        for major in self.majors_data.get(stream, []):
-            # Simple scoring based on interests and competencies
-            score = 70  # Base score
-            
-            # Add bonus based on interests
-            if user_data.get('interests'):
-                interest_bonus = sum(user_data['interests'].values()) * 2
-                score += min(interest_bonus, 20)
-            
-            # Add bonus based on competencies
-            if user_data.get('competencies'):
-                competency_bonus = sum(user_data['competencies'].values()) * 2
-                score += min(competency_bonus, 10)
-            
-            score = min(score, 95)  # Cap at 95%
+        for major_data in self.majors_data.get(stream, []):
+            major_name = major_data['name']
+            score = self.calculate_match_score(user_data, major_data)
             
             recommendations.append({
-                'major': major,
+                'major': major_name,
                 'score': score,
-                'careers': self.career_paths.get(major, ['Various Career Opportunities']),
-                'reasoning': self.generate_reasoning(user_data, major, score)
+                'skills': major_data['skills'],
+                'prospects': major_data['prospects'],
+                'careers': self.career_paths.get(major_name, ['Various Career Opportunities']),
+                'reasoning': self.generate_reasoning(user_data, major_data, score)
             })
         
-        return sorted(recommendations, key=lambda x: x['score'], reverse=True)
+        return sorted(recommendations, key=lambda x: x['score'], reverse=True)[:3]
     
     def generate_reasoning(self, user_data, major, score):
+        """Generate reasoning for recommendation"""
         reasoning_parts = []
         
         if user_data.get('interests'):
-            reasoning_parts.append("sesuai dengan minat yang Anda tunjukkan")
+            reasoning_parts.append("sesuai dengan minat Anda")
         
         if user_data.get('competencies'):
-            reasoning_parts.append("sejalan dengan kompetensi yang Anda miliki")
+            reasoning_parts.append("sejalan dengan kompetensi Anda")
         
         if user_data.get('academic_scores'):
-            reasoning_parts.append("relevan dengan kemampuan akademik Anda")
+            reasoning_parts.append("relevan dengan kemampuan akademik")
         
-        if reasoning_parts:
-            return f"Rekomendasi {major} karena " + ", ".join(reasoning_parts) + "."
-        else:
-            return f"Rekomendasi {major} berdasarkan analisis profil umum."
+        return f"Rekomendasi {major['name']} karena " + ", ".join(reasoning_parts)
 
 def main():
     st.markdown('<h1 class="main-header">🎓 AI Career Guidance Platform</h1>', unsafe_allow_html=True)
@@ -95,7 +137,7 @@ def main():
     
     # Initialize AI system
     if 'ai_system' not in st.session_state:
-        st.session_state.ai_system = SimpleCareerAI()
+        st.session_state.ai_system = CareerAI()
         st.session_state.current_step = 0
         st.session_state.user_data = {}
     
@@ -130,6 +172,7 @@ def render_personal_info():
                 st.session_state.user_data['stream'] = stream
                 st.success("✅ Data berhasil disimpan! Silakan lanjut ke langkah berikutnya.")
                 st.session_state.current_step = 1
+                st.rerun()
             else:
                 st.error("❌ Harap isi nama lengkap")
 
@@ -143,13 +186,17 @@ def render_academic_data():
         st.write("Masukkan nilai rapor (skala 0-100):")
         
         scores = {}
-        for subject in subjects:
-            scores[subject] = st.slider(f"Nilai {subject}", 0, 100, 75)
+        cols = st.columns(2)
+        
+        for i, subject in enumerate(subjects):
+            with cols[i % 2]:
+                scores[subject] = st.slider(f"Nilai {subject}", 0, 100, 75, key=f"score_{subject}")
         
         if st.form_submit_button("Simpan & Lanjut"):
             st.session_state.user_data['academic_scores'] = scores
             st.success("✅ Data akademik berhasil disimpan!")
             st.session_state.current_step = 2
+            st.rerun()
 
 def get_subjects_by_stream(stream):
     subjects = {
@@ -166,18 +213,18 @@ def render_interests_competencies():
         st.subheader("Minat Aktivitas (1=Sangat Tidak Suka, 5=Sangat Suka)")
         
         interests = {
-            "Analisis dan Problem Solving": st.slider("Analisis & Problem Solving", 1, 5, 3),
-            "Kreativitas dan Seni": st.slider("Kreativitas & Seni", 1, 5, 3),
-            "Komunikasi dan Sosial": st.slider("Komunikasi & Sosial", 1, 5, 3),
-            "Teknologi dan Programming": st.slider("Teknologi & Programming", 1, 5, 3)
+            "Analisis dan Problem Solving": st.slider("Analisis & Problem Solving", 1, 5, 3, key="interest_analysis"),
+            "Kreativitas dan Seni": st.slider("Kreativitas & Seni", 1, 5, 3, key="interest_creativity"),
+            "Komunikasi dan Sosial": st.slider("Komunikasi & Sosial", 1, 5, 3, key="interest_communication"),
+            "Teknologi dan Programming": st.slider("Teknologi & Programming", 1, 5, 3, key="interest_tech")
         }
         
         st.subheader("Kompetensi Diri (1=Sangat Rendah, 5=Sangat Tinggi)")
         competencies = {
-            "Analisis Logis": st.slider("Analisis Logis", 1, 5, 3),
-            "Kreativitas": st.slider("Kreativitas", 1, 5, 3),
-            "Komunikasi": st.slider("Komunikasi", 1, 5, 3),
-            "Kepemimpinan": st.slider("Kepemimpinan", 1, 5, 3)
+            "Analisis Logis": st.slider("Analisis Logis", 1, 5, 3, key="comp_analysis"),
+            "Kreativitas": st.slider("Kreativitas", 1, 5, 3, key="comp_creativity"),
+            "Komunikasi": st.slider("Komunikasi", 1, 5, 3, key="comp_communication"),
+            "Kepemimpinan": st.slider("Kepemimpinan", 1, 5, 3, key="comp_leadership")
         }
         
         if st.form_submit_button("🎯 Lihat Rekomendasi"):
@@ -186,6 +233,7 @@ def render_interests_competencies():
             st.balloons()
             st.success("✅ Data berhasil disimpan! Melihat rekomendasi...")
             st.session_state.current_step = 3
+            st.rerun()
 
 def render_results():
     st.header("🎓 Hasil Rekomendasi Karir")
@@ -201,20 +249,22 @@ def render_results():
     
     for i, rec in enumerate(recommendations, 1):
         with st.container():
+            st.markdown(f'<div class="recommendation-card">', unsafe_allow_html=True)
             st.markdown(f"### 🥇 {i}. {rec['major']}")
+            st.markdown(f"**Skor Kecocokan: {rec['score']}%**")
+            st.markdown(f"**Prospek Karir:** {rec['prospects']}")
+            st.markdown('</div>', unsafe_allow_html=True)
             
-            # Progress bar
-            progress_value = rec['score'] / 100
-            st.progress(progress_value)
-            
-            st.write(f"**Skor Kecocokan: {rec['score']}%**")
-            st.write(f"**Alasan:** {rec['reasoning']}")
-            
-            st.write("**Peluang Karir:**")
-            for career in rec['careers']:
-                st.write(f"• {career}")
-            
-            st.markdown("---")
+            with st.expander("🔍 Lihat Detail"):
+                st.write(f"**Alasan:** {rec['reasoning']}")
+                
+                st.write("**Keterampilan yang Dibutuhkan:**")
+                for skill in rec['skills']:
+                    st.write(f"• {skill}")
+                
+                st.write("**Peluang Karir:**")
+                for career in rec['careers']:
+                    st.write(f"• {career}")
     
     # Career planning
     st.subheader("📅 Rencana Pengembangan Karir")
@@ -223,7 +273,7 @@ def render_results():
     
     with col1:
         st.write("**🎯 Jangka Pendek (1-2 tahun)**")
-        st.write("• Fokus pada mata pelajaran prasyarat")
+        st.write("• Fokus mata pelajaran prasyarat")
         st.write("• Ikuti ekstrakurikuler relevan")
         st.write("• Eksplorasi kursus online")
     
@@ -247,9 +297,6 @@ def render_results():
                 'name': st.session_state.user_data.get('name'),
                 'stream': st.session_state.user_data.get('stream')
             },
-            'academic_scores': st.session_state.user_data.get('academic_scores', {}),
-            'interests': st.session_state.user_data.get('interests', {}),
-            'competencies': st.session_state.user_data.get('competencies', {}),
             'recommendations': recommendations,
             'generated_at': pd.Timestamp.now().isoformat()
         }
