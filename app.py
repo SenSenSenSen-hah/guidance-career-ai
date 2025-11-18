@@ -10,6 +10,15 @@ from bs4 import BeautifulSoup
 import re
 import time
 import random
+from textblob import TextBlob
+import nltk
+from collections import Counter
+
+# Download required NLTK data
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
 # Page configuration
 st.set_page_config(
@@ -57,8 +66,136 @@ st.markdown("""
         font-family: monospace;
         font-size: 0.9rem;
     }
+    .essay-analysis {
+        background-color: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 1rem;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    .sentiment-positive {
+        color: #28a745;
+        font-weight: bold;
+    }
+    .sentiment-negative {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    .sentiment-neutral {
+        color: #6c757d;
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# ==================== TEXT ANALYSIS FUNCTIONS ====================
+class EssayAnalyzer:
+    def __init__(self):
+        self.interest_keywords = {
+            'teknologi': ['programming', 'coding', 'komputer', 'teknologi', 'software', 'aplikasi', 'digital', 'internet', 'website', 'ai', 'artificial intelligence'],
+            'sains': ['penelitian', 'eksperimen', 'sains', 'ilmiah', 'laboratorium', 'biologi', 'kimia', 'fisika', 'matematika', 'analisis data'],
+            'seni': ['seni', 'desain', 'kreatif', 'gambar', 'musik', 'menulis', 'fotografi', 'film', 'tari', 'lukis'],
+            'sosial': ['masyarakat', 'sosial', 'membantu', 'komunitas', 'volunteer', 'organisasi', 'gotong royong', 'peduli'],
+            'bisnis': ['bisnis', 'wirausaha', 'perusahaan', 'manajemen', 'marketing', 'jualan', 'profit', 'usaha'],
+            'kesehatan': ['kesehatan', 'dokter', 'perawat', 'rumah sakit', 'medis', 'obat', 'pasien', 'penyakit'],
+            'pendidikan': ['mengajar', 'guru', 'sekolah', 'belajar', 'pendidikan', 'ilmu', 'pengetahuan'],
+            'teknik': ['teknik', 'mesin', 'elektro', 'bangunan', 'konstruksi', 'engineer', 'perancangan']
+        }
+        
+        self.competency_keywords = {
+            'analisis': ['menganalisis', 'meneliti', 'memecahkan', 'problem solving', 'logika', 'data'],
+            'kreativitas': ['mencipta', 'ide', 'inovasi', 'kreatif', 'imajinasi', 'desain'],
+            'komunikasi': ['berbicara', 'presentasi', 'menulis', 'diskusi', 'negosiasi', 'jelas'],
+            'kepemimpinan': ['memimpin', 'mengorganisir', 'koordinasi', 'tim', 'proyek', 'inisiatif'],
+            'ketelitian': ['detail', 'teliti', 'akurat', 'presisi', 'hati-hati', 'perfeksionis']
+        }
+    
+    def analyze_sentiment(self, text):
+        """Analisis sentimen menggunakan TextBlob"""
+        try:
+            blob = TextBlob(text)
+            polarity = blob.sentiment.polarity
+            
+            if polarity > 0.1:
+                return {'score': polarity, 'label': 'POSITIF', 'emoji': '😊'}
+            elif polarity < -0.1:
+                return {'score': polarity, 'label': 'NEGATIF', 'emoji': '😔'}
+            else:
+                return {'score': polarity, 'label': 'NETRAL', 'emoji': '😐'}
+        except:
+            return {'score': 0, 'label': 'NETRAL', 'emoji': '😐'}
+    
+    def extract_interests(self, text):
+        """Ekstrak minat dari teks esai"""
+        text_lower = text.lower()
+        found_interests = []
+        
+        for interest_category, keywords in self.interest_keywords.items():
+            if any(keyword in text_lower for keyword in keywords):
+                found_interests.append(interest_category)
+        
+        return found_interests
+    
+    def extract_competencies(self, text):
+        """Ekstrak kompetensi dari teks esai"""
+        text_lower = text.lower()
+        found_competencies = []
+        
+        for competency_category, keywords in self.competency_keywords.items():
+            if any(keyword in text_lower for keyword in keywords):
+                found_competencies.append(competency_category)
+        
+        return found_competencies
+    
+    def extract_key_phrases(self, text, num_phrases=5):
+        """Ekstrak frase kunci dari teks"""
+        try:
+            # Simple approach: extract meaningful phrases
+            sentences = nltk.sent_tokenize(text)
+            words = []
+            for sentence in sentences:
+                words.extend(sentence.split())
+            
+            # Filter meaningful words (remove common words)
+            common_words = {'saya', 'dan', 'di', 'ke', 'dari', 'yang', 'untuk', 'pada', 'dengan', 'ini', 'itu', 'adalah'}
+            meaningful_words = [word for word in words if word.lower() not in common_words and len(word) > 3]
+            
+            # Count frequency
+            word_freq = Counter(meaningful_words)
+            return [word for word, count in word_freq.most_common(num_phrases)]
+        except:
+            return []
+    
+    def analyze_essays(self, essays):
+        """Analisis komprehensif semua esai"""
+        all_analysis = {}
+        combined_text = ""
+        
+        for i, (question, answer) in enumerate(essays.items()):
+            if answer.strip():
+                analysis = {
+                    'sentiment': self.analyze_sentiment(answer),
+                    'interests': self.extract_interests(answer),
+                    'competencies': self.extract_competencies(answer),
+                    'key_phrases': self.extract_key_phrases(answer),
+                    'word_count': len(answer.split()),
+                    'answer': answer
+                }
+                all_analysis[f'essay_{i+1}'] = analysis
+                combined_text += " " + answer
+        
+        # Overall analysis
+        if combined_text:
+            overall_analysis = {
+                'sentiment': self.analyze_sentiment(combined_text),
+                'interests': self.extract_interests(combined_text),
+                'competencies': self.extract_competencies(combined_text),
+                'key_phrases': self.extract_key_phrases(combined_text),
+                'total_word_count': len(combined_text.split())
+            }
+            all_analysis['overall'] = overall_analysis
+        
+        return all_analysis
 
 # ==================== WEB SCRAPING FUNCTIONS ====================
 class WebScraper:
@@ -245,7 +382,7 @@ class PDFReport(FPDF):
         
         self.ln(5)
 
-def generate_pdf_report(user_data, recommendations, scraped_data):
+def generate_pdf_report(user_data, recommendations, scraped_data, essay_analysis=None):
     pdf = PDFReport()
     pdf.add_page()
     
@@ -265,6 +402,24 @@ def generate_pdf_report(user_data, recommendations, scraped_data):
         for subject, score in user_data['academic_scores'].items():
             pdf.cell(20)  # indent
             pdf.cell(0, 6, f'{subject}: {score}', 0, 1)
+    
+    # Essay Analysis (if available)
+    if essay_analysis and essay_analysis.get('overall'):
+        pdf.ln(5)
+        pdf.add_section_title('📝 Analisis Esai Reflektif')
+        pdf.set_font('Arial', '', 10)
+        overall = essay_analysis['overall']
+        
+        pdf.cell(0, 6, f'Sentimen: {overall.get("sentiment", {}).get("label", "N/A")}', 0, 1)
+        
+        if overall.get('interests'):
+            pdf.cell(0, 6, f'Minat Terdeteksi: {", ".join(overall["interests"])}', 0, 1)
+        
+        if overall.get('competencies'):
+            pdf.cell(0, 6, f'Kompetensi Terdeteksi: {", ".join(overall["competencies"])}', 0, 1)
+        
+        if overall.get('key_phrases'):
+            pdf.cell(0, 6, f'Kata Kunci: {", ".join(overall["key_phrases"][:5])}', 0, 1)
     
     # Recommendations dengan data scraping
     pdf.add_section_title('🎓 Rekomendasi Jurusan')
@@ -339,12 +494,13 @@ class CareerAI:
         }
         
         self.scraper = WebScraper()
+        self.essay_analyzer = EssayAnalyzer()
     
     def calculate_match_score(self, user_data, major):
         """Calculate match score dengan algoritma lebih sophisticated"""
         score = 50  # Base score lebih rendah
         
-        # 1. Academic Match (35%)
+        # 1. Academic Match (30%)
         academic_score = 0
         if user_data.get('academic_scores'):
             subject_weights = self.get_subject_weights(major['name'])
@@ -355,9 +511,9 @@ class CareerAI:
                     total_weight += weight
             if total_weight > 0:
                 academic_score = (academic_score / total_weight) * 100
-            score += academic_score * 0.35  # 35%
+            score += academic_score * 0.30  # 30%
         
-        # 2. Interest Match (40%)
+        # 2. Interest Match (25%)
         interest_score = 0
         if user_data.get('interests'):
             interest_weights = self.get_interest_weights(major['name'])
@@ -368,9 +524,9 @@ class CareerAI:
                 total_interest_weight += weight
             if total_interest_weight > 0:
                 interest_score = (interest_score / total_interest_weight) * 100
-            score += interest_score * 0.40  # 40%
+            score += interest_score * 0.25  # 25%
         
-        # 3. Competency Match (25%)
+        # 3. Competency Match (20%)
         competency_score = 0
         if user_data.get('competencies'):
             competency_weights = self.get_competency_weights(major['name'])
@@ -381,9 +537,34 @@ class CareerAI:
                 total_competency_weight += weight
             if total_competency_weight > 0:
                 competency_score = (competency_score / total_competency_weight) * 100
-            score += competency_score * 0.25  # 25%
+            score += competency_score * 0.20  # 20%
         
-        # 4. Random variation untuk menghindari hasil identik
+        # 4. Essay Analysis Match (25%)
+        essay_score = 0
+        if user_data.get('essay_analysis') and user_data['essay_analysis'].get('overall'):
+            overall = user_data['essay_analysis']['overall']
+            
+            # Match interests from essays
+            essay_interests = set(overall.get('interests', []))
+            major_interests = set(self.get_major_interests(major['name']))
+            if essay_interests and major_interests:
+                interest_match = len(essay_interests.intersection(major_interests)) / len(major_interests)
+                essay_score += interest_match * 50
+            
+            # Match competencies from essays
+            essay_competencies = set(overall.get('competencies', []))
+            major_competencies = set(self.get_major_competencies(major['name']))
+            if essay_competencies and major_competencies:
+                competency_match = len(essay_competencies.intersection(major_competencies)) / len(major_competencies)
+                essay_score += competency_match * 30
+            
+            # Sentiment bonus
+            sentiment = overall.get('sentiment', {}).get('score', 0)
+            essay_score += max(sentiment * 20, 0)  # Positive sentiment gives bonus
+            
+            score += essay_score * 0.25  # 25%
+        
+        # 5. Random variation untuk menghindari hasil identik
         score += random.uniform(-3, 3)
         
         return min(max(score, 0), 100)
@@ -439,6 +620,40 @@ class CareerAI:
         }
         return weights.get(major_name, {'Analisis Logis': 0.25, 'Kreativitas': 0.25, 'Komunikasi': 0.25, 'Kepemimpinan': 0.25})
     
+    def get_major_interests(self, major_name):
+        """Return typical interests for a major"""
+        interests_map = {
+            'Teknik Informatika': ['teknologi', 'sains', 'analisis'],
+            'Kedokteran': ['sains', 'kesehatan', 'sosial'],
+            'Teknik Elektro': ['teknologi', 'sains', 'analisis'],
+            'Farmasi': ['sains', 'kesehatan', 'analisis'],
+            'Manajemen': ['bisnis', 'sosial', 'komunikasi'],
+            'Akuntansi': ['bisnis', 'analisis', 'ketelitian'],
+            'Ilmu Komunikasi': ['komunikasi', 'sosial', 'seni'],
+            'Psikologi': ['sosial', 'analisis', 'komunikasi'],
+            'Sastra Inggris': ['seni', 'komunikasi', 'bahasa'],
+            'Sastra Indonesia': ['seni', 'komunikasi', 'bahasa'],
+            'Penerjemahan': ['bahasa', 'komunikasi', 'ketelitian']
+        }
+        return interests_map.get(major_name, [])
+    
+    def get_major_competencies(self, major_name):
+        """Return typical competencies for a major"""
+        competencies_map = {
+            'Teknik Informatika': ['analisis', 'kreativitas'],
+            'Kedokteran': ['analisis', 'komunikasi', 'ketelitian'],
+            'Teknik Elektro': ['analisis', 'kreativitas'],
+            'Farmasi': ['analisis', 'ketelitian'],
+            'Manajemen': ['komunikasi', 'kepemimpinan'],
+            'Akuntansi': ['analisis', 'ketelitian'],
+            'Ilmu Komunikasi': ['komunikasi', 'kreativitas'],
+            'Psikologi': ['komunikasi', 'analisis'],
+            'Sastra Inggris': ['komunikasi', 'kreativitas'],
+            'Sastra Indonesia': ['komunikasi', 'kreativitas'],
+            'Penerjemahan': ['komunikasi', 'ketelitian']
+        }
+        return competencies_map.get(major_name, [])
+    
     def generate_recommendations(self, user_data):
         """Generate career recommendations"""
         recommendations = []
@@ -472,11 +687,18 @@ class CareerAI:
         if user_data.get('academic_scores'):
             reasoning_parts.append("relevan dengan kemampuan akademik")
         
+        if user_data.get('essay_analysis'):
+            reasoning_parts.append("didukung oleh esai reflektif Anda")
+        
         return f"Rekomendasi {major['name']} karena " + ", ".join(reasoning_parts)
     
     def scrape_additional_info(self, major_name):
         """Scrape additional information for a major"""
         return self.scraper.scrape_university_info(major_name)
+    
+    def analyze_user_essays(self, essays):
+        """Analyze user essays"""
+        return self.essay_analyzer.analyze_essays(essays)
 
 # ==================== STREAMLIT UI COMPONENTS ====================
 def main():
@@ -490,11 +712,12 @@ def main():
         st.session_state.user_data = {}
         st.session_state.scraped_data = {}
         st.session_state.scraping_done = False
-        st.session_state.debug_mode = True  # Set to False to hide debug panel
+        st.session_state.debug_mode = True
+        st.session_state.essays = {}
     
     # Sidebar navigation
     st.sidebar.title("Navigasi")
-    steps = ["Data Diri", "Data Akademik", "Minat & Kompetensi", "Hasil Rekomendasi"]
+    steps = ["Data Diri", "Data Akademik", "Minat & Kompetensi", "Esai Reflektif", "Hasil Rekomendasi"]
     current_step = st.sidebar.radio("Pilih Langkah:", steps, index=st.session_state.current_step)
     
     # Debug toggle
@@ -517,6 +740,8 @@ def main():
         render_academic_data()
     elif current_step == "Minat & Kompetensi":
         render_interests_competencies()
+    elif current_step == "Esai Reflektif":
+        render_essay_reflection()
     else:
         render_results()
 
@@ -593,13 +818,83 @@ def render_interests_competencies():
             "Kepemimpinan": st.slider("Kepemimpinan", 1, 5, 3, key="comp_leadership")
         }
         
-        if st.form_submit_button("🎯 Lihat Rekomendasi"):
+        if st.form_submit_button("Simpan & Lanjut"):
             st.session_state.user_data['interests'] = interests
             st.session_state.user_data['competencies'] = competencies
-            st.balloons()
-            st.success("✅ Data berhasil disimpan! Melihat rekomendasi...")
+            st.success("✅ Data berhasil disimpan!")
             st.session_state.current_step = 3
             st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_essay_reflection():
+    st.markdown('<div class="step-card">', unsafe_allow_html=True)
+    st.header("📝 Esai Reflektif")
+    st.write("Jawab pertanyaan berikut untuk membantu sistem memahami minat, aspirasi, dan kepribadian Anda dengan lebih baik.")
+    
+    essay_questions = {
+        'q1': "Apa cita-cita atau impian karir Anda? Jelaskan mengapa karir tersebut menarik bagi Anda.",
+        'q2': "Deskripsikan kegiatan atau aktivitas yang paling Anda nikmati selama sekolah dan jelaskan apa yang membuatnya menyenangkan.",
+        'q3': "Apa kekuatan terbesar yang Anda miliki dan bagaimana Anda berencana mengembangkannya di masa depan?"
+    }
+    
+    with st.form("essay_form"):
+        essays = {}
+        
+        for q_key, question in essay_questions.items():
+            st.subheader(f"Pertanyaan {list(essay_questions.keys()).index(q_key) + 1}")
+            st.write(question)
+            essays[q_key] = st.text_area(
+                f"Jawaban Anda:",
+                height=150,
+                key=f"essay_{q_key}",
+                placeholder="Tulis jawaban Anda di sini... (minimal 50 kata untuk analisis optimal)"
+            )
+            st.markdown("---")
+        
+        if st.form_submit_button("📊 Analisis Esai & Lihat Rekomendasi"):
+            # Check if at least one essay has sufficient content
+            valid_essays = {k: v for k, v in essays.items() if v and len(v.split()) >= 10}
+            
+            if valid_essays:
+                with st.spinner("🔄 Menganalisis esai Anda..."):
+                    # Analyze essays
+                    essay_analysis = st.session_state.ai_system.analyze_user_essays(valid_essays)
+                    st.session_state.user_data['essay_analysis'] = essay_analysis
+                    st.session_state.essays = valid_essays
+                
+                # Show analysis results
+                st.success("✅ Analisis esai selesai! Berikut hasilnya:")
+                
+                if essay_analysis.get('overall'):
+                    overall = essay_analysis['overall']
+                    
+                    st.markdown('<div class="essay-analysis">', unsafe_allow_html=True)
+                    st.subheader("📊 Hasil Analisis Esai")
+                    
+                    # Sentiment
+                    sentiment = overall.get('sentiment', {})
+                    sentiment_class = f"sentiment-{sentiment.get('label', 'neutral').lower()}"
+                    st.markdown(f"**Sentimen:** <span class='{sentiment_class}'>{sentiment.get('emoji', '')} {sentiment.get('label', 'N/A')}</span>", unsafe_allow_html=True)
+                    
+                    # Interests
+                    if overall.get('interests'):
+                        st.write(f"**Minat yang Terdeteksi:** {', '.join(overall['interests'])}")
+                    
+                    # Competencies
+                    if overall.get('competencies'):
+                        st.write(f"**Kompetensi yang Terdeteksi:** {', '.join(overall['competencies'])}")
+                    
+                    # Key phrases
+                    if overall.get('key_phrases'):
+                        st.write(f"**Kata Kunci Utama:** {', '.join(overall['key_phrases'][:5])}")
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                
+                st.session_state.current_step = 4
+                st.rerun()
+            else:
+                st.error("❌ Harap isi setidaknya satu pertanyaan esai dengan minimal 10 kata untuk analisis yang optimal.")
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_results():
@@ -617,8 +912,7 @@ def render_results():
             st.write(f"- Scraping done: {st.session_state.get('scraping_done', 'Not set')}")
             st.write(f"- Scraped data keys: {list(st.session_state.get('scraped_data', {}).keys())}")
             st.write(f"- User stream: {st.session_state.get('user_data', {}).get('stream', 'No stream')}")
-            st.write(f"- User interests: {st.session_state.get('user_data', {}).get('interests', 'No interests')}")
-            st.write(f"- User competencies: {st.session_state.get('user_data', {}).get('competencies', 'No competencies')}")
+            st.write(f"- Essay analysis: {'Available' if st.session_state.get('user_data', {}).get('essay_analysis') else 'Not available'}")
             st.markdown('</div>', unsafe_allow_html=True)
     
     # Generate recommendations
@@ -685,6 +979,36 @@ def render_results():
                 else:
                     st.warning("❌ Tidak ada data scraping untuk jurusan ini")
     
+    # Tampilkan analisis esai jika ada
+    if st.session_state.user_data.get('essay_analysis'):
+        st.subheader("📝 Analisis Esai Reflektif Anda")
+        
+        overall = st.session_state.user_data['essay_analysis'].get('overall', {})
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            sentiment = overall.get('sentiment', {})
+            st.metric(
+                label="Sentimen Esai", 
+                value=f"{sentiment.get('emoji', '')} {sentiment.get('label', 'N/A')}",
+                delta=f"Score: {sentiment.get('score', 0):.2f}" if sentiment.get('score') else None
+            )
+        
+        with col2:
+            interests = overall.get('interests', [])
+            st.metric(
+                label="Minat Terdeteksi", 
+                value=len(interests)
+            )
+        
+        with col3:
+            competencies = overall.get('competencies', [])
+            st.metric(
+                label="Kompetensi Terdeteksi", 
+                value=len(competencies)
+            )
+    
     # Career planning
     st.subheader("📅 Rencana Pengembangan Karir")
     
@@ -725,6 +1049,8 @@ def render_results():
             'academic_scores': st.session_state.user_data.get('academic_scores', {}),
             'interests': st.session_state.user_data.get('interests', {}),
             'competencies': st.session_state.user_data.get('competencies', {}),
+            'essays': st.session_state.get('essays', {}),
+            'essay_analysis': st.session_state.user_data.get('essay_analysis', {}),
             'recommendations': recommendations,
             'scraped_data': st.session_state.scraped_data,
             'generated_at': datetime.now().isoformat()
@@ -748,7 +1074,8 @@ def render_results():
                     pdf_bytes = generate_pdf_report(
                         st.session_state.user_data, 
                         recommendations,
-                        st.session_state.scraped_data
+                        st.session_state.scraped_data,
+                        st.session_state.user_data.get('essay_analysis')
                     )
                     
                     st.download_button(
