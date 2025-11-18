@@ -9,6 +9,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import time
+import random
 
 # Page configuration
 st.set_page_config(
@@ -47,6 +48,15 @@ st.markdown("""
         border-radius: 5px;
         margin: 10px 0;
     }
+    .debug-panel {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 1rem;
+        border-radius: 5px;
+        margin: 10px 0;
+        font-family: monospace;
+        font-size: 0.9rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -60,26 +70,32 @@ class WebScraper:
     def scrape_university_info(self, major_name):
         """Scrape informasi jurusan dari berbagai sumber"""
         try:
-            # Format nama jurusan untuk pencarian
-            search_query = f"jurusan {major_name} universitas indonesia"
-            
-            # Sumber-sumber yang akan di-scrape
-            sources = [
-                self._scrape_from_wikipedia(major_name),
-                self._scrape_from_lamptk(major_name),
-                self._scrape_from_simak(major_name)
+            # Coba beberapa user agents
+            user_agents = [
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             ]
             
-            # Filter hasil yang valid
-            valid_sources = [source for source in sources if source and source.get('description')]
+            for user_agent in user_agents:
+                self.headers['User-Agent'] = user_agent
+                
+                # Sumber-sumber yang akan di-scrape
+                sources = [
+                    self._scrape_from_wikipedia(major_name),
+                    self._scrape_from_zenius(major_name),
+                    self._scrape_from_quipper(major_name)
+                ]
+                
+                # Filter hasil yang valid
+                valid_sources = [source for source in sources if source and source.get('description')]
+                
+                if valid_sources:
+                    return valid_sources[0]  # Return yang pertama yang valid
             
-            if valid_sources:
-                return valid_sources[0]  # Return yang pertama yang valid
-            else:
-                return self._generate_fallback_info(major_name)
+            return self._generate_fallback_info(major_name)
                 
         except Exception as e:
-            st.error(f"Error scraping: {str(e)}")
             return self._generate_fallback_info(major_name)
     
     def _scrape_from_wikipedia(self, major_name):
@@ -101,14 +117,15 @@ class WebScraper:
                             return {
                                 'description': text[:500] + '...' if len(text) > 500 else text,
                                 'source': 'Wikipedia',
-                                'url': url
+                                'url': url,
+                                'status': 'success'
                             }
             return None
         except:
             return None
     
-    def _scrape_from_lamptk(self, major_name):
-        """Scrape dari website LAM-PTK (contoh)"""
+    def _scrape_from_zenius(self, major_name):
+        """Scrape dari website Zenius (contoh)"""
         try:
             # Contoh scraping dari situs pendidikan
             url = f"https://www.zenius.net/blog/{major_name.replace(' ', '-').lower()}"
@@ -127,16 +144,17 @@ class WebScraper:
                             return {
                                 'description': text[:400] + '...' if len(text) > 400 else text,
                                 'source': 'Zenius Education',
-                                'url': url
+                                'url': url,
+                                'status': 'success'
                             }
             return None
         except:
             return None
     
-    def _scrape_from_simak(self, major_name):
-        """Scrape dari website SIMAK (contoh)"""
+    def _scrape_from_quipper(self, major_name):
+        """Scrape dari website Quipper (contoh)"""
         try:
-            # Contoh scraping dari situs universitas
+            # Contoh scraping dari situs pendidikan
             url = f"https://www.quipper.com/id/blog/{major_name.replace(' ', '-').lower()}"
             response = requests.get(url, headers=self.headers, timeout=10)
             
@@ -153,7 +171,8 @@ class WebScraper:
                             return {
                                 'description': text[:400] + '...' if len(text) > 400 else text,
                                 'source': 'Quipper',
-                                'url': url
+                                'url': url,
+                                'status': 'success'
                             }
             return None
         except:
@@ -162,20 +181,27 @@ class WebScraper:
     def _generate_fallback_info(self, major_name):
         """Generate informasi fallback jika scraping gagal"""
         fallback_descriptions = {
-            'Teknik Informatika': 'Jurusan Teknik Informatika mempelajari pengembangan perangkat lunak, artificial intelligence, dan sistem komputer. Lulusannya bekerja sebagai software engineer, data scientist, dan IT consultant.',
-            'Kedokteran': 'Jurusan Kedokteran mempelajari ilmu medis, anatomi manusia, dan praktik klinis. Lulusannya menjadi dokter umum atau spesialis di rumah sakit dan klinik.',
-            'Manajemen': 'Jurusan Manajemen fokus pada pengelolaan bisnis, pemasaran, dan sumber daya manusia. Lulusannya bekerja sebagai manajer, konsultan bisnis, atau entrepreneur.',
-            'Psikologi': 'Jurusan Psikologi mempelajari perilaku manusia dan proses mental. Lulusannya bekerja sebagai psikolog klinis, HR specialist, atau konselor.',
-            'Sastra Inggris': 'Jurusan Sastra Inggris mempelajari bahasa, sastra, dan budaya Inggris. Lulusannya bekerja sebagai penerjemah, content writer, atau diplomat.'
+            'Teknik Informatika': 'Jurusan Teknik Informatika mempelajari pengembangan perangkat lunak, artificial intelligence, dan sistem komputer. Lulusannya bekerja sebagai software engineer, data scientist, dan IT consultant. Prospek karir sangat tinggi dengan permintaan yang terus meningkat di era digital.',
+            'Kedokteran': 'Jurusan Kedokteran mempelajari ilmu medis, anatomi manusia, dan praktik klinis. Lulusannya menjadi dokter umum atau spesialis di rumah sakit dan klinik. Membutuhkan komitmen tinggi dan masa studi yang panjang.',
+            'Manajemen': 'Jurusan Manajemen fokus pada pengelolaan bisnis, pemasaran, dan sumber daya manusia. Lulusannya bekerja sebagai manajer, konsultan bisnis, atau entrepreneur. Cocok untuk yang memiliki jiwa kepemimpinan.',
+            'Psikologi': 'Jurusan Psikologi mempelajari perilaku manusia dan proses mental. Lulusannya bekerja sebagai psikolog klinis, HR specialist, atau konselor. Membutuhkan empati dan kemampuan analisis yang baik.',
+            'Sastra Inggris': 'Jurusan Sastra Inggris mempelajari bahasa, sastra, dan budaya Inggris. Lulusannya bekerja sebagai penerjemah, content writer, atau diplomat. Peluang karir di bidang pendidikan dan media juga terbuka lebar.',
+            'Teknik Elektro': 'Jurusan Teknik Elektro mempelajari sistem kelistrikan, elektronika, dan telekomunikasi. Lulusannya bekerja di bidang energi, telekomunikasi, dan manufaktur elektronik.',
+            'Farmasi': 'Jurusan Farmasi fokus pada ilmu obat-obatan dan farmakologi. Lulusannya menjadi apoteker, peneliti obat, atau bekerja di industri farmasi.',
+            'Akuntansi': 'Jurusan Akuntansi mempelajari pencatatan dan analisis keuangan. Lulusannya menjadi akuntan, auditor, atau konsultan pajak.',
+            'Ilmu Komunikasi': 'Jurusan Ilmu Komunikasi mempelajari media, public relations, dan jurnalistik. Lulusannya bekerja di media, advertising, atau corporate communication.',
+            'Sastra Indonesia': 'Jurusan Sastra Indonesia mempelajari bahasa dan sastra Indonesia. Lulusannya menjadi penulis, editor, atau bekerja di bidang budaya dan pendidikan.',
+            'Penerjemahan': 'Jurusan Penerjemahan fokus pada teknik penerjemahan antar bahasa. Lulusannya menjadi penerjemah, interpreter, atau language specialist.'
         }
         
         description = fallback_descriptions.get(major_name, 
-            f"Jurusan {major_name} merupakan program studi yang relevan dengan minat dan bakat Anda. Disarankan untuk mencari informasi lebih lanjut dari sumber terpercaya.")
+            f"Jurusan {major_name} merupakan program studi yang relevan dengan minat dan bakat Anda. Disarankan untuk mencari informasi lebih lanjut dari sumber terpercaya mengenai kurikulum dan prospek karirnya.")
         
         return {
             'description': description,
             'source': 'Sistem AI Career Guidance',
-            'url': '#'
+            'url': '#',
+            'status': 'fallback'
         }
 
 # ==================== PDF REPORT GENERATOR ====================
@@ -299,33 +325,119 @@ class CareerAI:
         }
         
         self.career_paths = {
-            'Teknik Informatika': ['Software Engineer', 'Data Scientist', 'Web Developer'],
-            'Kedokteran': ['Dokter Umum', 'Dokter Spesialis', 'Peneliti Medis'],
-            'Manajemen': ['Manajer Perusahaan', 'Entrepreneur', 'Konsultan Bisnis'],
-            'Psikologi': ['Psikolog Klinis', 'HR Specialist', 'Konselor']
+            'Teknik Informatika': ['Software Engineer', 'Data Scientist', 'Web Developer', 'AI Specialist'],
+            'Kedokteran': ['Dokter Umum', 'Dokter Spesialis', 'Peneliti Medis', 'Dosen Kedokteran'],
+            'Teknik Elektro': ['Electrical Engineer', 'Telecommunication Engineer', 'Power Systems Engineer', 'Electronics Designer'],
+            'Farmasi': ['Apoteker', 'Peneliti Obat', 'Medical Representative', 'Quality Control'],
+            'Manajemen': ['Manajer Perusahaan', 'Entrepreneur', 'Konsultan Bisnis', 'Business Analyst'],
+            'Akuntansi': ['Akuntan', 'Auditor', 'Konsultan Pajak', 'Financial Analyst'],
+            'Ilmu Komunikasi': ['Jurnalis', 'Public Relations', 'Content Creator', 'Media Planner'],
+            'Psikologi': ['Psikolog Klinis', 'HR Specialist', 'Konselor', 'Researcher'],
+            'Sastra Inggris': ['Penerjemah', 'Content Writer', 'Diplomat', 'Teacher'],
+            'Sastra Indonesia': ['Penulis', 'Editor', 'Jurnalis', 'Content Creator'],
+            'Penerjemahan': ['Translator', 'Interpreter', 'Language Specialist', 'Localization Expert']
         }
         
         self.scraper = WebScraper()
     
     def calculate_match_score(self, user_data, major):
-        """Calculate match score between user and major"""
-        score = 60  # Base score
+        """Calculate match score dengan algoritma lebih sophisticated"""
+        score = 50  # Base score lebih rendah
         
-        # Academic match (simplified)
+        # 1. Academic Match (35%)
+        academic_score = 0
         if user_data.get('academic_scores'):
-            score += 10
+            subject_weights = self.get_subject_weights(major['name'])
+            total_weight = 0
+            for subject, weight in subject_weights.items():
+                if subject in user_data['academic_scores']:
+                    academic_score += (user_data['academic_scores'][subject] / 100) * weight
+                    total_weight += weight
+            if total_weight > 0:
+                academic_score = (academic_score / total_weight) * 100
+            score += academic_score * 0.35  # 35%
         
-        # Interest match
+        # 2. Interest Match (40%)
+        interest_score = 0
         if user_data.get('interests'):
-            interest_score = sum(user_data['interests'].values()) * 1.5
-            score += min(interest_score, 20)
+            interest_weights = self.get_interest_weights(major['name'])
+            total_interest_weight = 0
+            for interest, rating in user_data['interests'].items():
+                weight = interest_weights.get(interest, 0.5)
+                interest_score += (rating / 5) * weight
+                total_interest_weight += weight
+            if total_interest_weight > 0:
+                interest_score = (interest_score / total_interest_weight) * 100
+            score += interest_score * 0.40  # 40%
         
-        # Competency match
+        # 3. Competency Match (25%)
+        competency_score = 0
         if user_data.get('competencies'):
-            competency_score = sum(user_data['competencies'].values()) * 1.5
-            score += min(competency_score, 10)
+            competency_weights = self.get_competency_weights(major['name'])
+            total_competency_weight = 0
+            for competency, rating in user_data['competencies'].items():
+                weight = competency_weights.get(competency, 0.5)
+                competency_score += (rating / 5) * weight
+                total_competency_weight += weight
+            if total_competency_weight > 0:
+                competency_score = (competency_score / total_competency_weight) * 100
+            score += competency_score * 0.25  # 25%
         
-        return min(score, 95)
+        # 4. Random variation untuk menghindari hasil identik
+        score += random.uniform(-3, 3)
+        
+        return min(max(score, 0), 100)
+    
+    def get_subject_weights(self, major_name):
+        """Return subject weights berdasarkan jurusan"""
+        weights = {
+            'Teknik Informatika': {'Matematika': 0.4, 'Fisika': 0.3, 'Kimia': 0.1, 'Biologi': 0.0},
+            'Kedokteran': {'Matematika': 0.2, 'Fisika': 0.2, 'Kimia': 0.3, 'Biologi': 0.3},
+            'Teknik Elektro': {'Matematika': 0.4, 'Fisika': 0.4, 'Kimia': 0.1, 'Biologi': 0.0},
+            'Farmasi': {'Matematika': 0.2, 'Fisika': 0.1, 'Kimia': 0.4, 'Biologi': 0.3},
+            'Manajemen': {'Matematika': 0.3, 'Ekonomi': 0.4, 'Sejarah': 0.1, 'Geografi': 0.1},
+            'Akuntansi': {'Matematika': 0.4, 'Ekonomi': 0.3, 'Sejarah': 0.1, 'Geografi': 0.1},
+            'Ilmu Komunikasi': {'Matematika': 0.1, 'Ekonomi': 0.2, 'Sejarah': 0.3, 'Geografi': 0.2},
+            'Psikologi': {'Matematika': 0.1, 'Ekonomi': 0.2, 'Sejarah': 0.3, 'Geografi': 0.2},
+            'Sastra Inggris': {'Bahasa Indonesia': 0.3, 'Bahasa Inggris': 0.4, 'Sastra': 0.2, 'Sejarah': 0.1},
+            'Sastra Indonesia': {'Bahasa Indonesia': 0.4, 'Bahasa Inggris': 0.2, 'Sastra': 0.3, 'Sejarah': 0.1},
+            'Penerjemahan': {'Bahasa Indonesia': 0.3, 'Bahasa Inggris': 0.4, 'Sastra': 0.2, 'Sejarah': 0.1}
+        }
+        return weights.get(major_name, {'Matematika': 0.25, 'Fisika': 0.25, 'Kimia': 0.25, 'Biologi': 0.25})
+    
+    def get_interest_weights(self, major_name):
+        """Return interest weights berdasarkan jurusan"""
+        weights = {
+            'Teknik Informatika': {'Analisis dan Problem Solving': 0.4, 'Teknologi dan Programming': 0.4, 'Kreativitas dan Seni': 0.1, 'Komunikasi dan Sosial': 0.1},
+            'Kedokteran': {'Analisis dan Problem Solving': 0.3, 'Teknologi dan Programming': 0.1, 'Kreativitas dan Seni': 0.1, 'Komunikasi dan Sosial': 0.5},
+            'Teknik Elektro': {'Analisis dan Problem Solving': 0.4, 'Teknologi dan Programming': 0.3, 'Kreativitas dan Seni': 0.1, 'Komunikasi dan Sosial': 0.2},
+            'Farmasi': {'Analisis dan Problem Solving': 0.3, 'Teknologi dan Programming': 0.2, 'Kreativitas dan Seni': 0.1, 'Komunikasi dan Sosial': 0.4},
+            'Manajemen': {'Analisis dan Problem Solving': 0.3, 'Teknologi dan Programming': 0.1, 'Kreativitas dan Seni': 0.2, 'Komunikasi dan Sosial': 0.4},
+            'Akuntansi': {'Analisis dan Problem Solving': 0.4, 'Teknologi dan Programming': 0.1, 'Kreativitas dan Seni': 0.1, 'Komunikasi dan Sosial': 0.4},
+            'Ilmu Komunikasi': {'Analisis dan Problem Solving': 0.2, 'Teknologi dan Programming': 0.1, 'Kreativitas dan Seni': 0.3, 'Komunikasi dan Sosial': 0.4},
+            'Psikologi': {'Analisis dan Problem Solving': 0.2, 'Teknologi dan Programming': 0.1, 'Kreativitas dan Seni': 0.2, 'Komunikasi dan Sosial': 0.5},
+            'Sastra Inggris': {'Analisis dan Problem Solving': 0.2, 'Teknologi dan Programming': 0.1, 'Kreativitas dan Seni': 0.4, 'Komunikasi dan Sosial': 0.3},
+            'Sastra Indonesia': {'Analisis dan Problem Solving': 0.2, 'Teknologi dan Programming': 0.1, 'Kreativitas dan Seni': 0.4, 'Komunikasi dan Sosial': 0.3},
+            'Penerjemahan': {'Analisis dan Problem Solving': 0.3, 'Teknologi dan Programming': 0.1, 'Kreativitas dan Seni': 0.2, 'Komunikasi dan Sosial': 0.4}
+        }
+        return weights.get(major_name, {'Analisis dan Problem Solving': 0.25, 'Teknologi dan Programming': 0.25, 'Kreativitas dan Seni': 0.25, 'Komunikasi dan Sosial': 0.25})
+    
+    def get_competency_weights(self, major_name):
+        """Return competency weights berdasarkan jurusan"""
+        weights = {
+            'Teknik Informatika': {'Analisis Logis': 0.4, 'Kreativitas': 0.3, 'Komunikasi': 0.1, 'Kepemimpinan': 0.2},
+            'Kedokteran': {'Analisis Logis': 0.3, 'Kreativitas': 0.1, 'Komunikasi': 0.4, 'Kepemimpinan': 0.2},
+            'Teknik Elektro': {'Analisis Logis': 0.4, 'Kreativitas': 0.2, 'Komunikasi': 0.2, 'Kepemimpinan': 0.2},
+            'Farmasi': {'Analisis Logis': 0.3, 'Kreativitas': 0.1, 'Komunikasi': 0.3, 'Kepemimpinan': 0.3},
+            'Manajemen': {'Analisis Logis': 0.2, 'Kreativitas': 0.2, 'Komunikasi': 0.3, 'Kepemimpinan': 0.3},
+            'Akuntansi': {'Analisis Logis': 0.4, 'Kreativitas': 0.1, 'Komunikasi': 0.2, 'Kepemimpinan': 0.3},
+            'Ilmu Komunikasi': {'Analisis Logis': 0.2, 'Kreativitas': 0.3, 'Komunikasi': 0.4, 'Kepemimpinan': 0.1},
+            'Psikologi': {'Analisis Logis': 0.2, 'Kreativitas': 0.2, 'Komunikasi': 0.4, 'Kepemimpinan': 0.2},
+            'Sastra Inggris': {'Analisis Logis': 0.2, 'Kreativitas': 0.3, 'Komunikasi': 0.4, 'Kepemimpinan': 0.1},
+            'Sastra Indonesia': {'Analisis Logis': 0.2, 'Kreativitas': 0.3, 'Komunikasi': 0.4, 'Kepemimpinan': 0.1},
+            'Penerjemahan': {'Analisis Logis': 0.3, 'Kreativitas': 0.2, 'Komunikasi': 0.4, 'Kepemimpinan': 0.1}
+        }
+        return weights.get(major_name, {'Analisis Logis': 0.25, 'Kreativitas': 0.25, 'Komunikasi': 0.25, 'Kepemimpinan': 0.25})
     
     def generate_recommendations(self, user_data):
         """Generate career recommendations"""
@@ -338,7 +450,7 @@ class CareerAI:
             
             recommendations.append({
                 'major': major_name,
-                'score': score,
+                'score': round(score, 1),
                 'skills': major_data['skills'],
                 'prospects': major_data['prospects'],
                 'careers': self.career_paths.get(major_name, ['Various Career Opportunities']),
@@ -371,18 +483,29 @@ def main():
     st.markdown('<h1 class="main-header">🎓 AI Career Guidance Platform</h1>', unsafe_allow_html=True)
     st.markdown("**Sistem Bimbingan Karir Berbasis AI untuk Siswa Kelas 12**")
     
-    # Initialize AI system
+    # Initialize session state
     if 'ai_system' not in st.session_state:
         st.session_state.ai_system = CareerAI()
         st.session_state.current_step = 0
         st.session_state.user_data = {}
         st.session_state.scraped_data = {}
         st.session_state.scraping_done = False
+        st.session_state.debug_mode = True  # Set to False to hide debug panel
     
     # Sidebar navigation
     st.sidebar.title("Navigasi")
     steps = ["Data Diri", "Data Akademik", "Minat & Kompetensi", "Hasil Rekomendasi"]
     current_step = st.sidebar.radio("Pilih Langkah:", steps, index=st.session_state.current_step)
+    
+    # Debug toggle
+    st.session_state.debug_mode = st.sidebar.checkbox("🔧 Debug Mode", value=st.session_state.get('debug_mode', True))
+    
+    # Reset button
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🔄 Reset Session"):
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.rerun()
     
     # Update current step
     st.session_state.current_step = steps.index(current_step)
@@ -486,17 +609,47 @@ def render_results():
         st.warning("⚠️ Harap lengkapi data di langkah-langkah sebelumnya terlebih dahulu.")
         return
     
+    # DEBUG PANEL
+    if st.session_state.get('debug_mode', True):
+        with st.expander("🔧 Debug Information", expanded=True):
+            st.markdown('<div class="debug-panel">', unsafe_allow_html=True)
+            st.write("**Scraping Status:**")
+            st.write(f"- Scraping done: {st.session_state.get('scraping_done', 'Not set')}")
+            st.write(f"- Scraped data keys: {list(st.session_state.get('scraped_data', {}).keys())}")
+            st.write(f"- User stream: {st.session_state.get('user_data', {}).get('stream', 'No stream')}")
+            st.write(f"- User interests: {st.session_state.get('user_data', {}).get('interests', 'No interests')}")
+            st.write(f"- User competencies: {st.session_state.get('user_data', {}).get('competencies', 'No competencies')}")
+            st.markdown('</div>', unsafe_allow_html=True)
+    
     # Generate recommendations
     recommendations = st.session_state.ai_system.generate_recommendations(st.session_state.user_data)
     
     # Web scraping untuk informasi tambahan
-    if not st.session_state.scraping_done:
-        with st.spinner("🕸️ Mengumpulkan informasi terbaru dari web..."):
-            for rec in recommendations:
-                scraped_info = st.session_state.ai_system.scrape_additional_info(rec['major'])
-                st.session_state.scraped_data[rec['major']] = scraped_info
-                time.sleep(1)  # Delay untuk menghormati server
-            st.session_state.scraping_done = True
+    if not st.session_state.get('scraping_done', False):
+        st.info("🔍 **MEMULAI WEB SCRAPING** - Mencari informasi terbaru...")
+        scraped_count = 0
+        progress_bar = st.progress(0)
+        status_container = st.empty()
+        
+        for i, rec in enumerate(recommendations):
+            progress_bar.progress((i + 1) / len(recommendations))
+            with st.spinner(f"🕸️ Scraping info untuk {rec['major']}..."):
+                try:
+                    scraped_info = st.session_state.ai_system.scrape_additional_info(rec['major'])
+                    st.session_state.scraped_data[rec['major']] = scraped_info
+                    scraped_count += 1
+                    
+                    # Tampilkan hasil scraping langsung
+                    status_container.success(f"✅ {rec['major']}: Berhasil - {len(scraped_info['description'])} karakter dari {scraped_info['source']}")
+                    
+                except Exception as e:
+                    status_container.error(f"❌ {rec['major']}: Gagal - {str(e)}")
+                
+                time.sleep(2)  # Delay untuk menghormati server
+        
+        st.session_state.scraping_done = True
+        st.balloons()
+        st.success(f"🎉 Scraping selesai! Berhasil mengumpulkan info untuk {scraped_count} jurusan")
     
     st.subheader("📊 Rekomendasi Jurusan Terbaik untuk Anda:")
     
@@ -526,7 +679,11 @@ def render_results():
                     st.write("**🌐 Informasi dari Web:**")
                     st.write(scraped_info['description'])
                     st.write(f"*Sumber: {scraped_info['source']}*")
+                    if scraped_info.get('url') and scraped_info['url'] != '#':
+                        st.write(f"*Link: {scraped_info['url']}*")
                     st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.warning("❌ Tidak ada data scraping untuk jurusan ini")
     
     # Career planning
     st.subheader("📅 Rencana Pengembangan Karir")
