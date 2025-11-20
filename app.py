@@ -20,7 +20,6 @@ import plotly.graph_objects as go
 
 # ==================== 1. KONFIGURASI SISTEM ====================
 
-# Download NLTK Data (Fail-safe untuk Cloud)
 def download_nltk_data():
     resources = ['punkt', 'averaged_perceptron_tagger', 'brown']
     for resource in resources:
@@ -35,13 +34,12 @@ def download_nltk_data():
 download_nltk_data()
 
 st.set_page_config(
-    page_title="Sistem Pakar Karir AI (Hybrid)",
+    page_title="Sistem Pakar Karir SMA (AI Hybrid)",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# CSS Styling
 st.markdown("""
 <style>
     .main-header {
@@ -76,15 +74,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ==================== 2. SISTEM PENGETAHUAN HYBRID (OTONOM) ====================
+# ==================== 2. SISTEM PENGETAHUAN HYBRID ====================
 
 class AutonomousKnowledgeBase:
-    """
-    Sistem Hybrid: 
-    1. Cek File JSON (Cepat & Stabil)
-    2. Jika tidak ada, Scrape Internet (Update Mandiri)
-    3. Simpan hasil scrape ke JSON (Belajar)
-    """
     _instance = None
     _lock = threading.Lock()
     
@@ -95,7 +87,6 @@ class AutonomousKnowledgeBase:
         self.is_running = False
 
     def _load_db(self):
-        """Load database dari file lokal"""
         if os.path.exists(self.db_file):
             try:
                 with open(self.db_file, 'r') as f:
@@ -105,13 +96,11 @@ class AutonomousKnowledgeBase:
         return {}
 
     def _save_db(self):
-        """Menyimpan pengetahuan baru ke file"""
         with self._lock:
             with open(self.db_file, 'w') as f:
                 json.dump(self.data, f, indent=4)
 
     def _scrape_wikipedia(self, major_name):
-        """Mengambil data dari Wikipedia"""
         try:
             query = major_name.replace(' ', '_')
             url = f"https://id.wikipedia.org/api/rest_v1/page/summary/{query}"
@@ -128,7 +117,6 @@ class AutonomousKnowledgeBase:
         except:
             pass
         
-        # Fallback jika gagal scraping
         return {
             'description': f"Program studi {major_name} mempelajari aspek teoretis dan praktis di bidangnya. Lulusan memiliki prospek karir yang relevan dengan industri saat ini.",
             'source': 'Sistem Pakar Internal (Fallback)',
@@ -137,30 +125,22 @@ class AutonomousKnowledgeBase:
         }
 
     def get_info(self, major_name):
-        """Fungsi utama yang dipanggil UI"""
-        # 1. Cek Memory/File (Cepat)
         if major_name in self.data:
             info = self.data[major_name]
-            info['source'] = 'Database Lokal (Saved)' # Tandai sebagai data lokal
+            info['source'] = 'Database Lokal (Saved)'
             return info
         
-        # 2. Jika tidak ada, Scrape (Belajar)
         print(f"🤖 Robot: Mempelajari jurusan {major_name} dari internet...")
         info = self._scrape_wikipedia(major_name)
-        
-        # 3. Simpan hasil (Update Knowledge Base)
         self.data[major_name] = info
         self._save_db()
-        
         return info
 
     def start_background_updater(self):
-        """Thread terpisah untuk update data di belakang layar (Semi-Otonom)"""
         if not self.is_running:
             self.is_running = True
             thread = threading.Thread(target=self._updater_loop, daemon=True)
             thread.start()
-            print("🚀 Sistem Otonom Berjalan di Background")
 
     def _updater_loop(self):
         majors_to_check = [
@@ -170,11 +150,10 @@ class AutonomousKnowledgeBase:
         while self.is_running:
             for major in majors_to_check:
                 if major not in self.data:
-                    self.get_info(major) # Ini akan mentrigger scrape & save
-                    time.sleep(5) # Jeda biar sopan ke server Wikipedia
-            time.sleep(3600) # Istirahat 1 jam
+                    self.get_info(major)
+                    time.sleep(5)
+            time.sleep(3600)
 
-# Singleton Pattern untuk Knowledge Base
 @st.cache_resource
 def get_knowledge_base():
     kb = AutonomousKnowledgeBase()
@@ -185,8 +164,7 @@ def get_knowledge_base():
 
 class AdvancedCareerAI:
     def __init__(self):
-        # Definisi Vektor Jurusan (Target)
-        # Dimensi: [Logika/Math, Verbal/Lingual, Sosial/People, Seni/Creative, Sains/Nature]
+        # Dimensi: [Logika, Verbal, Sosial, Seni, Sains]
         self.major_vectors = {
             'Teknik Informatika':     [0.9, 0.4, 0.2, 0.5, 0.6],
             'Sistem Informasi':       [0.7, 0.5, 0.6, 0.4, 0.4],
@@ -201,7 +179,8 @@ class AdvancedCareerAI:
             'Hukum':                  [0.6, 0.9, 0.7, 0.2, 0.2],
             'Farmasi':                [0.7, 0.4, 0.5, 0.1, 1.0],
             'Hubungan Internasional': [0.4, 0.9, 0.8, 0.2, 0.2],
-            'Arsitektur':             [0.8, 0.3, 0.4, 0.9, 0.6]
+            'Arsitektur':             [0.8, 0.3, 0.4, 0.9, 0.6],
+            'Sastra Indonesia':       [0.2, 0.9, 0.6, 0.7, 0.1]
         }
 
     def _normalize_score(self, val, max_val=100):
@@ -209,17 +188,16 @@ class AdvancedCareerAI:
         return min(max(val / max_val, 0), 1)
 
     def construct_user_vector(self, user_data):
-        """Membangun vektor user berdasarkan Kurikulum Indonesia"""
         academics = user_data.get('academic_scores', {})
         interests = user_data.get('interests', {})
         competencies = user_data.get('competencies', {})
         
-        # Parsing Nilai (Logic Kurikulum Indonesia)
+        # Logika Akademik
         math_wajib = academics.get('Matematika (Wajib)', 0)
         indo_wajib = academics.get('Bahasa Indonesia', 0)
         inggris_wajib = academics.get('Bahasa Inggris', 0)
         
-        # Peminatan Fallback Logic
+        # Fallback Values (jika mapel tidak ada di jurusan user, nilainya 0)
         math_minat = academics.get('Matematika (Peminatan)', math_wajib)
         fisika = academics.get('Fisika', 0)
         kimia = academics.get('Kimia', 0)
@@ -229,8 +207,6 @@ class AdvancedCareerAI:
         geografi = academics.get('Geografi', 0)
         sastra_indo = academics.get('Sastra Indonesia', 0)
         sastra_inggris = academics.get('Sastra Inggris', 0)
-        
-        # Konstruksi 5 Dimensi Vektor
         
         # 1. LOGIKA / MATH
         score_logika = (math_wajib * 0.3) + (math_minat * 0.3) + (fisika * 0.2) + (ekonomi * 0.2)
@@ -259,18 +235,14 @@ class AdvancedCareerAI:
         return np.array([vec_math, vec_verbal, vec_social, vec_art, vec_science])
 
     def generate_recommendations(self, user_data):
-        """Menghitung Cosine Similarity"""
         user_vector = self.construct_user_vector(user_data).reshape(1, -1)
         results = []
         
         for major, vector in self.major_vectors.items():
             major_vec = np.array(vector).reshape(1, -1)
-            
-            # Kalkulasi Matematika
             similarity = cosine_similarity(user_vector, major_vec)[0][0]
             match_score = similarity * 100
             
-            # Bonus Keyword Esai
             if user_data.get('essay_analysis'):
                 bonus = self._calculate_essay_bonus(user_data['essay_analysis'], major)
                 match_score += bonus
@@ -287,14 +259,12 @@ class AdvancedCareerAI:
     def _calculate_essay_bonus(self, essay_analysis, major):
         bonus = 0
         text = " ".join(essay_analysis.get('overall', {}).get('key_phrases', [])).lower()
-        
         keywords = {
             'Teknik': ['komputer', 'coding', 'mesin', 'alat'],
             'Kedokteran': ['sehat', 'dokter', 'biologi', 'bantu'],
             'Seni': ['gambar', 'desain', 'lukis', 'musik'],
             'Ekonomi': ['bisnis', 'uang', 'jual', 'usaha']
         }
-        
         for key, words in keywords.items():
             if key in major:
                 for w in words:
@@ -305,12 +275,8 @@ class EssayAnalyzer:
     def analyze_essays(self, essays):
         full_text = " ".join(essays.values())
         blob = TextBlob(full_text)
-        
         polarity = blob.sentiment.polarity
-        if polarity > 0.1: sent_label = "POSITIF"
-        elif polarity < -0.1: sent_label = "NEGATIF"
-        else: sent_label = "NETRAL"
-        
+        sent_label = "POSITIF" if polarity > 0.1 else "NEGATIF" if polarity < -0.1 else "NETRAL"
         return {
             'overall': {
                 'sentiment': {'score': polarity, 'label': sent_label},
@@ -326,11 +292,10 @@ class PDFReport(FPDF):
         self.set_font('Arial', 'B', 16)
         self.cell(0, 10, 'LAPORAN REKOMENDASI KARIR AI', 0, 1, 'C')
         self.ln(5)
-        
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
-        self.cell(0, 10, f'Halaman {self.page_no()} - Sistem Pakar Karir Hybrid', 0, 0, 'C')
+        self.cell(0, 10, f'Halaman {self.page_no()}', 0, 0, 'C')
 
 # ==================== 5. USER INTERFACE (STREAMLIT) ====================
 
@@ -340,7 +305,7 @@ def render_step_1():
     with st.form("step1"):
         name = st.text_input("Nama Lengkap")
         stream = st.selectbox("Peminatan / Jurusan Sekolah", 
-                             ["MIPA", "IPS", "Bahasa", "SMK Teknik", "SMK Bisnis/Manajemen"])
+                             ["MIPA (IPA)", "IPS", "Bahasa"])
         
         if st.form_submit_button("Lanjut ➡️"):
             if not name:
@@ -354,10 +319,10 @@ def render_step_1():
 def render_step_2():
     st.markdown('<div class="step-card">', unsafe_allow_html=True)
     st.markdown("### 📚 Langkah 2: Data Akademik (Rapor SMA)")
-    st.markdown('<div class="info-box">Masukkan rata-rata nilai rapor (0-100). Isi 0 jika mata pelajaran tidak ada.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="info-box">Masukkan rata-rata nilai rapor (0-100).</div>', unsafe_allow_html=True)
     st.write("")
     
-    stream = st.session_state.user_data.get('stream', 'MIPA')
+    stream = st.session_state.user_data.get('stream', 'MIPA (IPA)')
     
     with st.form("step2"):
         st.markdown("#### A. Mata Pelajaran Umum (Wajib)")
@@ -369,7 +334,8 @@ def render_step_2():
         st.markdown(f"#### B. Mata Pelajaran Peminatan ({stream})")
         scores_minat = {}
         
-        if stream in ['MIPA', 'IPA']:
+        # LOGIKA INPUT NILAI BERDASARKAN JURUSAN SMA
+        if 'MIPA' in stream or 'IPA' in stream:
             c1, c2 = st.columns(2)
             with c1:
                 scores_minat['Matematika (Peminatan)'] = st.number_input("Matematika Peminatan", 0, 100, 75)
@@ -378,25 +344,23 @@ def render_step_2():
                 scores_minat['Kimia'] = st.number_input("Kimia", 0, 100, 75)
                 scores_minat['Biologi'] = st.number_input("Biologi", 0, 100, 75)
                 
-        elif stream in ['IPS', 'IIS']:
+        elif 'IPS' in stream:
             c1, c2 = st.columns(2)
             with c1:
                 scores_minat['Ekonomi'] = st.number_input("Ekonomi", 0, 100, 75)
                 scores_minat['Sosiologi'] = st.number_input("Sosiologi", 0, 100, 75)
             with c2:
                 scores_minat['Geografi'] = st.number_input("Geografi", 0, 100, 75)
+                scores_minat['Sejarah Peminatan'] = st.number_input("Sejarah Peminatan", 0, 100, 75)
         
-        elif stream in ['Bahasa', 'IBB']:
+        elif 'Bahasa' in stream:
             c1, c2 = st.columns(2)
             with c1:
                 scores_minat['Sastra Indonesia'] = st.number_input("Sastra Indonesia", 0, 100, 75)
                 scores_minat['Sastra Inggris'] = st.number_input("Sastra Inggris", 0, 100, 75)
             with c2:
-                scores_minat['Bahasa Asing Lain'] = st.number_input("Bahasa Asing", 0, 100, 75)
-
-        elif 'SMK' in stream:
-            st.warning("Untuk SMK, gunakan nilai Produktif sebagai referensi Matematika Peminatan.")
-            scores_minat['Matematika (Peminatan)'] = st.number_input("Nilai Produktif / Kejuruan", 0, 100, 75)
+                scores_minat['Bahasa Asing Lain'] = st.number_input("Bahasa Asing (Jepang/Mandarin/dll)", 0, 100, 75)
+                scores_minat['Antropologi'] = st.number_input("Antropologi", 0, 100, 75)
 
         if st.form_submit_button("Simpan & Lanjut ➡️"):
             all_scores = {
@@ -442,7 +406,7 @@ def render_step_3():
 def render_step_4():
     st.markdown('<div class="step-card">', unsafe_allow_html=True)
     st.markdown("### 🧠 Langkah 4: Esai Reflektif AI")
-    st.markdown('<div class="info-box">Ceritakan sedikit tentang cita-cita Anda, atau masalah apa yang ingin Anda selesaikan di dunia ini? AI akan menganalisis pola pikir Anda.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="info-box">Ceritakan sedikit tentang cita-cita Anda, atau masalah apa yang ingin Anda selesaikan di dunia ini?</div>', unsafe_allow_html=True)
     st.write("")
     
     with st.form("step4"):
@@ -462,15 +426,12 @@ def render_step_4():
 def render_results_dashboard():
     st.markdown("## 🏆 Hasil Rekomendasi Karir")
     
-    # 1. AI Calculation
     ai_engine = AdvancedCareerAI()
     recommendations = ai_engine.generate_recommendations(st.session_state.user_data)
     top_rec = recommendations[0]
-    
-    # 2. Hybrid Knowledge Base Retrieval
     kb = get_knowledge_base()
     
-    # 3. Radar Chart
+    # Radar Chart
     categories = ['Logika/Math', 'Verbal', 'Sosial', 'Seni', 'Sains']
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(
@@ -483,7 +444,6 @@ def render_results_dashboard():
     ))
     fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=True, height=400)
     
-    # 4. Layout Result
     c1, c2 = st.columns([1, 1])
     with c1:
         st.plotly_chart(fig, use_container_width=True)
@@ -491,13 +451,11 @@ def render_results_dashboard():
         st.success(f"### 🥇 Rekomendasi: {top_rec['major']}")
         st.metric("Tingkat Kecocokan", f"{top_rec['score']}%")
         
-        # Ambil Info (Hybrid: File atau Web)
         with st.spinner("Mengambil data pengetahuan..."):
             info = kb.get_info(top_rec['major'])
             st.markdown(f"<div class='success-box'><b>Info Jurusan:</b><br>{info['description']}</div>", unsafe_allow_html=True)
             st.caption(f"Sumber Data: {info.get('source', 'Unknown')}")
             
-    # 5. Alternatif
     st.write("### 🥈 Pilihan Alternatif")
     col_a, col_b = st.columns(2)
     for i, rec in enumerate(recommendations[1:3]):
@@ -506,7 +464,6 @@ def render_results_dashboard():
                 info_alt = kb.get_info(rec['major'])
                 st.write(info_alt['description'])
 
-    # 6. PDF Generation
     if st.button("📄 Download Laporan Lengkap (PDF)"):
         try:
             pdf = PDFReport()
@@ -516,12 +473,12 @@ def render_results_dashboard():
             pdf.cell(0, 10, f"Rekomendasi Utama: {top_rec['major']} ({top_rec['score']}%)", ln=1)
             pdf.ln(5)
             
-            # Handle text encoding
             desc = kb.get_info(top_rec['major'])['description']
             desc_clean = desc.encode('latin-1', 'replace').decode('latin-1')
             pdf.multi_cell(0, 10, f"Deskripsi: {desc_clean}")
             
-            pdf_out = pdf.output(dest='S').encode('latin-1')
+            # FIX APPLIED HERE: Removed .encode()
+            pdf_out = pdf.output(dest='S') 
             b64 = base64.b64encode(pdf_out).decode()
             href = f'<a href="data:application/octet-stream;base64,{b64}" download="Hasil_Konsultasi.pdf">Klik untuk Download PDF</a>'
             st.markdown(href, unsafe_allow_html=True)
@@ -536,17 +493,13 @@ def render_results_dashboard():
 
 def main():
     st.markdown('<h1 class="main-header">🇮🇩 AI Career Guidance System</h1>', unsafe_allow_html=True)
-    
-    # Initialize Session State
     if 'user_data' not in st.session_state:
         st.session_state.user_data = {}
         st.session_state.current_step = 0
     
-    # Progress Indicator
     steps = ["Data Diri", "Akademik", "Minat", "Esai", "Hasil"]
     st.progress((st.session_state.current_step + 1) / len(steps))
     
-    # Routing
     step = st.session_state.current_step
     if step == 0: render_step_1()
     elif step == 1: render_step_2()
