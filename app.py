@@ -35,7 +35,7 @@ def download_nltk_data():
 download_nltk_data()
 
 st.set_page_config(
-    page_title="AI Career Guidance (Full Autonomous)",
+    page_title="AI Career Guidance (Explainable)",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -47,21 +47,17 @@ st.markdown("""
     .step-card { background-color: #ffffff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 3px solid #4e54c8; }
     .info-box { background-color: #e3f2fd; padding: 10px; border-radius: 5px; border-left: 4px solid #2196f3; font-size: 0.9em; }
     .success-box { background-color: #e8f5e9; padding: 10px; border-radius: 5px; border-left: 4px solid #4caf50; font-size: 0.9em; }
+    .reasoning-text { font-style: italic; color: #555; border-left: 3px solid #ff9800; padding-left: 10px; margin-top: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
-# ==================== 2. ENGINE PENERJEMAH TEKS KE VEKTOR (OTAK BARU) ====================
+# ==================== 2. ENGINE PENERJEMAH TEKS KE VEKTOR ====================
 
 class VectorGenerator:
-    """
-    Kelas ini bertugas mengubah Deskripsi Teks menjadi Angka Vektor 5 Dimensi
-    secara otomatis menggunakan Keyword Matching.
-    """
     def __init__(self):
-        # Kata kunci pemicu untuk setiap dimensi
         self.keywords = {
             'math': ['matematika', 'hitung', 'logika', 'komputasi', 'algoritma', 'analisis data', 'angka', 'teknik', 'rekayasa', 'sistem'],
-            'verbal': ['bahasa', 'sastra', 'tulis', 'baca', 'komunikasi', 'jurnalistik', 'pidato', 'inggris', 'terjemah', 'naskah'],
+            'verbal': ['bahasa', 'sastra', 'tulis', 'baca', 'komunikasi', 'jurnalistik', 'pidato', 'inggris', 'terjemah', 'naskah', 'sejarah'],
             'social': ['sosial', 'masyarakat', 'manusia', 'bantu', 'hukum', 'politik', 'psikologi', 'manajemen', 'bisnis', 'tim', 'pimpin'],
             'art': ['seni', 'desain', 'gambar', 'musik', 'kreatif', 'film', 'visual', 'estetika', 'budaya', 'arsitektur'],
             'science': ['fisika', 'kimia', 'biologi', 'alam', 'eksperimen', 'lab', 'medis', 'dokter', 'farmasi', 'lingkungan', 'kesehatan']
@@ -70,73 +66,59 @@ class VectorGenerator:
     def generate_vector(self, text, major_name):
         text = text.lower()
         name = major_name.lower()
-        
         scores = {'math': 0, 'verbal': 0, 'social': 0, 'art': 0, 'science': 0}
         
-        # 1. Scan Text Description
         for dim, keys in self.keywords.items():
             for key in keys:
-                if key in text:
-                    scores[dim] += 0.15 # Setiap keyword menambah bobot
+                if key in text: scores[dim] += 0.15
         
-        # 2. Scan Major Name (Judul Jurusan itu penting)
-        # Memberikan bias awal berdasarkan nama jurusan
         if 'teknik' in name or 'sistem' in name or 'komputer' in name: scores['math'] += 0.4
         if 'sastra' in name or 'bahasa' in name or 'komunikasi' in name: scores['verbal'] += 0.4
         if 'sosial' in name or 'hukum' in name or 'manajemen' in name: scores['social'] += 0.4
         if 'desain' in name or 'seni' in name: scores['art'] += 0.4
         if 'kedokteran' in name or 'kesehatan' in name or 'biologi' in name: scores['science'] += 0.4
-        if 'sejarah' in name: # Khusus Sejarah
+        if 'sejarah' in name: 
             scores['verbal'] += 0.3
             scores['social'] += 0.3
             
-        # 3. Normalisasi (Agar max nilai 1.0)
         vector = []
         for dim in ['math', 'verbal', 'social', 'art', 'science']:
-            val = min(scores[dim], 1.0) # Cap di 1.0
-            val = max(val, 0.1)         # Min di 0.1 (tidak boleh 0 mutlak)
+            val = min(scores[dim], 1.0) 
+            val = max(val, 0.1)         
             vector.append(round(val, 2))
-            
         return vector
 
-# ==================== 3. AUTONOMOUS KNOWLEDGE BASE (UPDATE OTOMATIS) ====================
+# ==================== 3. AUTONOMOUS KNOWLEDGE BASE ====================
 
 class AutonomousKnowledgeBase:
     _instance = None
     _lock = threading.Lock()
     
     def __init__(self):
-        self.db_file = 'knowledge_base_v2.json' # File database baru
+        self.db_file = 'knowledge_base_v2.json'
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         self.vector_gen = VectorGenerator()
-        
-        # Daftar Jurusan yang ingin dipelajari Robot
-        # ANDA BISA MENAMBAH JURUSAN APAPUN DI SINI, ROBOT AKAN CARI SENDIRI
         self.target_majors = [
             'Teknik Informatika', 'Sistem Informasi', 'Kedokteran', 'Psikologi', 
             'Manajemen', 'Akuntansi', 'Ilmu Komunikasi', 'Desain Komunikasi Visual',
             'Sastra Inggris', 'Teknik Sipil', 'Hukum', 'Farmasi', 'Arsitektur',
             'Ilmu Sejarah', 'Hubungan Internasional', 'Sastra Indonesia'
         ]
-        
         self.data = self._load_db()
         self.is_running = False
 
     def _load_db(self):
         if os.path.exists(self.db_file):
             try:
-                with open(self.db_file, 'r') as f:
-                    return json.load(f)
+                with open(self.db_file, 'r') as f: return json.load(f)
             except: return {}
         return {}
 
     def _save_db(self):
         with self._lock:
-            with open(self.db_file, 'w') as f:
-                json.dump(self.data, f, indent=4)
+            with open(self.db_file, 'w') as f: json.dump(self.data, f, indent=4)
 
     def _scrape_and_learn(self, major_name):
-        """Robot melakukan scraping DAN belajar membuat vektor"""
         try:
             query = major_name.replace(' ', '_')
             url = f"https://id.wikipedia.org/api/rest_v1/page/summary/{query}"
@@ -155,42 +137,29 @@ class AutonomousKnowledgeBase:
                 description = f"Jurusan {major_name} di perguruan tinggi."
                 source = "Internal Fallback"
 
-            # === INI BAGIAN KECERDASAN BARUNYA ===
-            # Robot membaca deskripsi -> Membuat Vektor Matematika
             generated_vector = self.vector_gen.generate_vector(description, major_name)
             
             return {
                 'description': description,
-                'vector': generated_vector, # Vektor hasil belajar sendiri
+                'vector': generated_vector,
                 'source': source,
                 'url': url_link,
                 'timestamp': datetime.now().isoformat()
             }
-            
         except Exception as e:
-            print(f"Error learning {major_name}: {e}")
-            # Default vector jika error (flat)
             return {
-                'description': "Data tidak tersedia saat ini.",
-                'vector': [0.2, 0.2, 0.2, 0.2, 0.2], 
-                'source': 'Error Handler',
-                'url': '#',
+                'description': "Data tidak tersedia.",
+                'vector': [0.2, 0.2, 0.2, 0.2, 0.2], 'source': 'Error', 'url': '#',
                 'timestamp': datetime.now().isoformat()
             }
 
     def get_all_vectors(self):
-        """Memberikan semua vektor yang sudah dipelajari ke AI Engine"""
         vectors = {}
-        
-        # Pastikan kita punya data minimal untuk target majors
-        # Jika belum ada di JSON, paksa pelajari sekarang (Lazy Loading)
         for major in self.target_majors:
             if major not in self.data:
                 self.data[major] = self._scrape_and_learn(major)
                 self._save_db()
-            
             vectors[major] = self.data[major]['vector']
-            
         return vectors
 
     def get_info(self, major_name):
@@ -201,14 +170,12 @@ class AutonomousKnowledgeBase:
 
 @st.cache_resource
 def get_knowledge_base():
-    kb = AutonomousKnowledgeBase()
-    return kb
+    return AutonomousKnowledgeBase()
 
-# ==================== 4. AI ENGINE (MENGGUNAKAN DATA OTOMATIS) ====================
+# ==================== 4. AI ENGINE (EXPLAINABLE) ====================
 
 class AdvancedCareerAI:
     def __init__(self):
-        # Mengambil vektor DARI ROBOT, bukan hardcoded
         kb = get_knowledge_base()
         self.major_vectors = kb.get_all_vectors()
 
@@ -226,7 +193,7 @@ class AdvancedCareerAI:
         indo_wajib = academics.get('Bahasa Indonesia', 0)
         inggris_wajib = academics.get('Bahasa Inggris', 0)
         
-        # Peminatan Logic
+        # Peminatan
         math_minat = academics.get('Matematika (Peminatan)', math_wajib)
         fisika = academics.get('Fisika', 0)
         kimia = academics.get('Kimia', 0)
@@ -238,51 +205,68 @@ class AdvancedCareerAI:
         sastra_indo = academics.get('Sastra Indonesia', 0)
         sastra_inggris = academics.get('Sastra Inggris', 0)
         
-        # 1. LOGIKA / MATH
         score_logika = (math_wajib * 0.3) + (math_minat * 0.3) + (fisika * 0.2) + (ekonomi * 0.2)
         vec_math = self._normalize_score(score_logika)
         
-        # 2. VERBAL / LINGUAL
         avg_bahasa = (indo_wajib + inggris_wajib + sastra_indo + sastra_inggris + sejarah_minat) / 5.0
         if avg_bahasa == 0: avg_bahasa = (indo_wajib + inggris_wajib) / 2.0
-        vec_verbal = (self._normalize_score(avg_bahasa) * 0.6) + \
-                     (self._normalize_score(competencies.get('Komunikasi', 0), 5) * 0.4)
+        vec_verbal = (self._normalize_score(avg_bahasa) * 0.6) + (self._normalize_score(competencies.get('Komunikasi', 0), 5) * 0.4)
         
-        # 3. SOSIAL / PEOPLE
         score_sosial_akad = max(sosiologi, geografi, sejarah_minat, (indo_wajib * 0.6))
-        vec_social = (self._normalize_score(score_sosial_akad) * 0.3) + \
-                     (self._normalize_score(interests.get('Komunikasi dan Sosial', 0), 5) * 0.4) + \
-                     (self._normalize_score(competencies.get('Kepemimpinan', 0), 5) * 0.3)
+        vec_social = (self._normalize_score(score_sosial_akad) * 0.3) + (self._normalize_score(interests.get('Komunikasi dan Sosial', 0), 5) * 0.4) + (self._normalize_score(competencies.get('Kepemimpinan', 0), 5) * 0.3)
         
-        # 4. SENI / CREATIVE
-        vec_art = (self._normalize_score(interests.get('Kreativitas dan Seni', 0), 5) * 0.6) + \
-                  (self._normalize_score(competencies.get('Kreativitas', 0), 5) * 0.4)
+        vec_art = (self._normalize_score(interests.get('Kreativitas dan Seni', 0), 5) * 0.6) + (self._normalize_score(competencies.get('Kreativitas', 0), 5) * 0.4)
         
-        # 5. SAINS / NATURE
         score_sains = (fisika + kimia + biologi + (geografi * 0.3)) / 3.3
         vec_science = self._normalize_score(score_sains)
         
         return np.array([vec_math, vec_verbal, vec_social, vec_art, vec_science])
 
+    # [BARU] Fungsi Penjelas Keputusan
+    def _generate_explanation(self, user_vec, major_vec, major_name, has_bonus):
+        dims = ['Logika & Matematika', 'Verbal & Bahasa', 'Sosial & Humaniora', 'Seni & Kreativitas', 'Sains & Alam']
+        
+        strong_match = []
+        for i in range(5):
+            # Jika User Kuat (>0.6) DAN Jurusan juga Kuat (>0.6) di dimensi yang sama
+            if user_vec[i] > 0.55 and major_vec[i] > 0.55:
+                strong_match.append(dims[i])
+        
+        explanation = f"AI merekomendasikan {major_name} karena profil Anda menunjukkan kekuatan yang signifikan pada aspek {', '.join(strong_match)}."
+        
+        if not strong_match:
+            explanation = f"AI merekomendasikan {major_name} karena profil Anda memiliki keseimbangan yang sesuai dengan karakteristik jurusan ini secara umum."
+
+        if has_bonus:
+            explanation += " Ditambah lagi, esai reflektif Anda mengandung kata kunci spesifik yang sangat relevan dengan bidang ini."
+            
+        return explanation
+
     def generate_recommendations(self, user_data):
         user_vector = self.construct_user_vector(user_data).reshape(1, -1)
         results = []
         
-        # Iterasi terhadap vektor dinamis yang dibuat robot
         for major, vector in self.major_vectors.items():
             major_vec = np.array(vector).reshape(1, -1)
             similarity = cosine_similarity(user_vector, major_vec)[0][0]
             match_score = similarity * 100
             
+            bonus = 0
+            has_bonus = False
             if user_data.get('essay_analysis'):
                 bonus = self._calculate_essay_bonus(user_data['essay_analysis'], major)
                 match_score += bonus
+                if bonus > 0: has_bonus = True
+
+            # Generate Penjelasan Naratif
+            explanation = self._generate_explanation(user_vector[0], vector, major, has_bonus)
 
             results.append({
                 'major': major,
                 'score': round(min(match_score, 99.9), 1),
                 'vector': vector, 
-                'user_vector': user_vector[0].tolist()
+                'user_vector': user_vector[0].tolist(),
+                'explanation': explanation # Simpan penjelasan
             })
             
         return sorted(results, key=lambda x: x['score'], reverse=True)[:3]
@@ -290,11 +274,11 @@ class AdvancedCareerAI:
     def _calculate_essay_bonus(self, essay_analysis, major):
         bonus = 0
         text = " ".join(essay_analysis.get('overall', {}).get('key_phrases', [])).lower()
-        # Simple keyword match
         if 'teknik' in major.lower() and ('teknologi' in text or 'komputer' in text): bonus += 3
         if 'sosial' in major.lower() and ('bantu' in text or 'masyarakat' in text): bonus += 3
         if 'seni' in major.lower() and ('gambar' in text or 'desain' in text): bonus += 3
         if 'kesehatan' in major.lower() and ('dokter' in text): bonus += 3
+        if 'sejarah' in major.lower() and ('masa lalu' in text or 'budaya' in text): bonus += 3
         return bonus
 
 class EssayAnalyzer:
@@ -311,7 +295,7 @@ class EssayAnalyzer:
             }
         }
 
-# ==================== 5. PDF REPORT ====================
+# ==================== 5. PDF REPORT (DENGAN PENJELASAN AI) ====================
 
 class PDFReport(FPDF):
     def header(self):
@@ -343,17 +327,14 @@ def render_step_2():
     st.markdown('<div class="step-card">', unsafe_allow_html=True)
     st.markdown("### 📚 Langkah 2: Data Akademik")
     stream = st.session_state.user_data.get('stream', 'MIPA (IPA)')
-    
     with st.form("step2"):
         st.markdown("#### A. Mata Pelajaran Umum")
         c1, c2, c3 = st.columns(3)
         with c1: math_w = st.number_input("Matematika (Wajib)", 0, 100, 75)
         with c2: indo = st.number_input("Bahasa Indonesia", 0, 100, 75)
         with c3: inggris = st.number_input("Bahasa Inggris", 0, 100, 75)
-        
         st.markdown(f"#### B. Mata Pelajaran Peminatan ({stream})")
         scores_minat = {}
-        
         if 'MIPA' in stream or 'IPA' in stream:
             c1, c2 = st.columns(2)
             with c1:
@@ -377,12 +358,8 @@ def render_step_2():
                 scores_minat['Sastra Inggris'] = st.number_input("Sastra Inggris", 0, 100, 75)
             with c2:
                 scores_minat['Sejarah Peminatan'] = st.number_input("Sejarah Peminatan (Lintas Minat)", 0, 100, 75)
-
         if st.form_submit_button("Simpan & Lanjut ➡️"):
-            all_scores = {
-                'Matematika (Wajib)': math_w, 'Bahasa Indonesia': indo, 'Bahasa Inggris': inggris,
-                **scores_minat
-            }
+            all_scores = {'Matematika (Wajib)': math_w, 'Bahasa Indonesia': indo, 'Bahasa Inggris': inggris, **scores_minat}
             st.session_state.user_data['academic_scores'] = all_scores
             st.session_state.current_step = 2
             st.rerun()
@@ -392,7 +369,6 @@ def render_step_3():
     st.markdown('<div class="step-card">', unsafe_allow_html=True)
     st.markdown("### 🎯 Langkah 3: Minat & Kompetensi")
     with st.form("step3"):
-        st.write("Seberapa suka Anda dengan aktivitas ini? (1-5)")
         c1, c2 = st.columns(2)
         with c1:
             i1 = st.slider("Analisis / Logika / Matematika", 1, 5, 3)
@@ -401,16 +377,11 @@ def render_step_3():
             i3 = st.slider("Seni / Desain / Musik", 1, 5, 3)
             i4 = st.slider("Teknologi / Coding", 1, 5, 3)
         st.markdown("---")
-        st.write("Penilaian Diri (Skill):")
         k1 = st.slider("Komunikasi", 1, 5, 3)
         k2 = st.slider("Kreativitas", 1, 5, 3)
         k3 = st.slider("Kepemimpinan", 1, 5, 3)
-
         if st.form_submit_button("Lanjut ➡️"):
-            st.session_state.user_data['interests'] = {
-                "Analisis dan Problem Solving": i1, "Komunikasi dan Sosial": i2,
-                "Kreativitas dan Seni": i3, "Teknologi dan Programming": i4
-            }
+            st.session_state.user_data['interests'] = {"Analisis dan Problem Solving": i1, "Komunikasi dan Sosial": i2, "Kreativitas dan Seni": i3, "Teknologi dan Programming": i4}
             st.session_state.user_data['competencies'] = {"Komunikasi": k1, "Kreativitas": k2, "Kepemimpinan": k3}
             st.session_state.current_step = 3
             st.rerun()
@@ -419,8 +390,14 @@ def render_step_3():
 def render_step_4():
     st.markdown('<div class="step-card">', unsafe_allow_html=True)
     st.markdown("### 🧠 Langkah 4: Esai Reflektif AI")
+    st.markdown("""
+    <div class="info-box">
+    <b>Panduan:</b> Ceritakan pelajaran apa yang kamu suka, masalah dunia apa yang ingin kamu bantu selesaikan, dan apa impian karirmu?
+    </div>
+    """, unsafe_allow_html=True)
+    st.write("")
     with st.form("step4"):
-        essay = st.text_area("Jawaban Anda (Min. 10 kata):", height=150, placeholder="Ceritakan minat dan cita-cita Anda...")
+        essay = st.text_area("Jawaban Anda:", height=150, placeholder="Saya sangat suka...")
         if st.form_submit_button("🔍 Analisis & Lihat Hasil"):
             if len(essay.split()) < 5: st.error("Mohon tulis lebih panjang.")
             else:
@@ -434,8 +411,7 @@ def render_step_4():
 def render_results_dashboard():
     st.markdown("## 🏆 Hasil Rekomendasi Karir")
     
-    # Proses Data: Ini akan memicu Scraping + Pembuatan Vektor Otomatis
-    with st.spinner("🤖 Robot sedang membaca Wikipedia & membuat profil vektor jurusan..."):
+    with st.spinner("🤖 Robot sedang menghitung kecocokan dan membuat penjelasan..."):
         ai_engine = AdvancedCareerAI()
         recommendations = ai_engine.generate_recommendations(st.session_state.user_data)
         
@@ -455,20 +431,40 @@ def render_results_dashboard():
         st.success(f"### 🥇 Rekomendasi: {top_rec['major']}")
         st.metric("Tingkat Kecocokan", f"{top_rec['score']}%")
         info = kb.get_info(top_rec['major'])
-        st.markdown(f"<div class='success-box'><b>Tentang Jurusan:</b><br>{info['description']}</div>", unsafe_allow_html=True)
-        st.caption(f"Data dipelajari dari: {info.get('source', 'Unknown')}")
-        st.caption(f"Vektor AI (Generated): {info.get('vector')}")
+        
+        # Tampilkan Penjelasan AI di Web
+        st.markdown(f"<div class='reasoning-text'><b>💡 Analisis AI:</b><br>{top_rec['explanation']}</div>", unsafe_allow_html=True)
+        st.write("")
+        st.markdown(f"<div class='info-box'><b>Tentang Jurusan:</b><br>{info['description']}</div>", unsafe_allow_html=True)
 
-    if st.button("📄 Download PDF"):
+    if st.button("📄 Download PDF dengan Penjelasan AI"):
         pdf = PDFReport()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
-        pdf.cell(0, 10, f"Rekomendasi: {top_rec['major']}", ln=1)
+        
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(0, 10, f"Nama: {st.session_state.user_data.get('name')}", ln=1)
+        pdf.cell(0, 10, f"Rekomendasi Utama: {top_rec['major']} ({top_rec['score']}%)", ln=1)
+        pdf.ln(5)
+        
+        # Bagian Penjelasan AI di PDF
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, "Analisis Keputusan AI:", ln=1)
+        pdf.set_font("Arial", '', 11)
+        exp_clean = top_rec['explanation'].encode('latin-1', 'replace').decode('latin-1')
+        pdf.multi_cell(0, 8, exp_clean)
+        pdf.ln(5)
+        
+        # Bagian Info Jurusan
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, "Deskripsi Jurusan:", ln=1)
+        pdf.set_font("Arial", '', 11)
         desc_clean = kb.get_info(top_rec['major'])['description'].encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 10, f"Info: {desc_clean}")
+        pdf.multi_cell(0, 8, desc_clean)
+        
         pdf_out = pdf.output(dest='S')
         b64 = base64.b64encode(pdf_out).decode()
-        href = f'<a href="data:application/octet-stream;base64,{b64}" download="Laporan.pdf">Download PDF</a>'
+        href = f'<a href="data:application/octet-stream;base64,{b64}" download="Laporan_AI.pdf">Klik untuk Download PDF</a>'
         st.markdown(href, unsafe_allow_html=True)
 
     if st.button("🔄 Reset"):
