@@ -13,29 +13,49 @@ from bs4 import BeautifulSoup
 from textblob import TextBlob
 import nltk
 import re
+import shutil
 
 # Machine Learning & Visualization
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import plotly.graph_objects as go
 
-# ==================== 1. KONFIGURASI SISTEM ====================
+# ==================== 1. KONFIGURASI SISTEM & FAIL-SAFE NLTK ====================
 
-def download_nltk_data():
+# Global flag untuk mengecek status NLTK
+NLTK_READY = False
+
+def setup_nltk_failsafe():
+    """
+    Mencoba download NLTK. Jika error (file korup), 
+    sistem akan mencatatnya dan beralih ke mode manual tanpa crash.
+    """
+    global NLTK_READY
     resources = ['punkt', 'averaged_perceptron_tagger', 'brown']
-    for resource in resources:
-        try:
+    
+    try:
+        # Cek apakah resource sudah ada
+        for resource in resources:
             nltk.data.find(f'tokenizers/{resource}')
-        except LookupError:
-            try:
+        NLTK_READY = True
+    except LookupError:
+        try:
+            # Coba download dengan quiet mode
+            for resource in resources:
                 nltk.download(resource, quiet=True)
-            except Exception:
-                pass
+            NLTK_READY = True
+        except Exception as e:
+            # JIKA GAGAL (Misal error zip file), JANGAN CRASH
+            print(f"⚠️ Peringatan: NLTK Error ({e}). Beralih ke Mode NLP Manual.")
+            NLTK_READY = False
+    except Exception:
+        NLTK_READY = False
 
-download_nltk_data()
+# Jalankan setup di awal
+setup_nltk_failsafe()
 
 st.set_page_config(
-    page_title="AI Career Guidance (Explainable)",
+    page_title="AI Career Guidance (Anti-Crash)",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -222,13 +242,11 @@ class AdvancedCareerAI:
         
         return np.array([vec_math, vec_verbal, vec_social, vec_art, vec_science])
 
-    # [BARU] Fungsi Penjelas Keputusan
     def _generate_explanation(self, user_vec, major_vec, major_name, has_bonus):
         dims = ['Logika & Matematika', 'Verbal & Bahasa', 'Sosial & Humaniora', 'Seni & Kreativitas', 'Sains & Alam']
         
         strong_match = []
         for i in range(5):
-            # Jika User Kuat (>0.6) DAN Jurusan juga Kuat (>0.6) di dimensi yang sama
             if user_vec[i] > 0.55 and major_vec[i] > 0.55:
                 strong_match.append(dims[i])
         
@@ -258,7 +276,6 @@ class AdvancedCareerAI:
                 match_score += bonus
                 if bonus > 0: has_bonus = True
 
-            # Generate Penjelasan Naratif
             explanation = self._generate_explanation(user_vector[0], vector, major, has_bonus)
 
             results.append({
@@ -266,7 +283,7 @@ class AdvancedCareerAI:
                 'score': round(min(match_score, 99.9), 1),
                 'vector': vector, 
                 'user_vector': user_vector[0].tolist(),
-                'explanation': explanation # Simpan penjelasan
+                'explanation': explanation
             })
             
         return sorted(results, key=lambda x: x['score'], reverse=True)[:3]
@@ -281,21 +298,45 @@ class AdvancedCareerAI:
         if 'sejarah' in major.lower() and ('masa lalu' in text or 'budaya' in text): bonus += 3
         return bonus
 
+# ==================== CLASS ESSAY ANALYZER (UPDATED: NLTK-FREE FALLBACK) ====================
 class EssayAnalyzer:
     def analyze_essays(self, essays):
         full_text = " ".join(essays.values())
-        blob = TextBlob(full_text)
-        polarity = blob.sentiment.polarity
+        
+        # Logic Anti-Crash: Jika NLTK Error, gunakan metode manual string splitting
+        if NLTK_READY:
+            try:
+                blob = TextBlob(full_text)
+                polarity = blob.sentiment.polarity
+                keywords = list(set(blob.noun_phrases))[:8]
+            except:
+                # Fallback jika TextBlob gagal meski NLTK_READY True (misal corpus rusak)
+                polarity = 0
+                keywords = self._manual_keyword_extraction(full_text)
+        else:
+            # Mode Manual (Tanpa NLTK)
+            polarity = 0 # Sentimen netral
+            keywords = self._manual_keyword_extraction(full_text)
+            
         sent_label = "POSITIF" if polarity > 0.1 else "NEGATIF" if polarity < -0.1 else "NETRAL"
+        
         return {
             'overall': {
                 'sentiment': {'score': polarity, 'label': sent_label},
-                'key_phrases': list(set(blob.noun_phrases))[:8],
+                'key_phrases': keywords,
                 'word_count': len(full_text.split())
             }
         }
+    
+    def _manual_keyword_extraction(self, text):
+        """Metode sederhana untuk mengambil kata kunci tanpa NLTK"""
+        # Pecah kata, buang kata sambung, ambil kata unik yang panjang > 4 huruf
+        words = re.findall(r'\w+', text.lower())
+        stopwords = ['yang', 'dan', 'di', 'ke', 'dari', 'ini', 'itu', 'adalah', 'saya', 'ingin', 'suka']
+        unique_words = list(set([w for w in words if w not in stopwords and len(w) > 4]))
+        return unique_words[:8]
 
-# ==================== 5. PDF REPORT (DENGAN PENJELASAN AI) ====================
+# ==================== 5. PDF REPORT ====================
 
 class PDFReport(FPDF):
     def header(self):
@@ -432,7 +473,6 @@ def render_results_dashboard():
         st.metric("Tingkat Kecocokan", f"{top_rec['score']}%")
         info = kb.get_info(top_rec['major'])
         
-        # Tampilkan Penjelasan AI di Web
         st.markdown(f"<div class='reasoning-text'><b>💡 Analisis AI:</b><br>{top_rec['explanation']}</div>", unsafe_allow_html=True)
         st.write("")
         st.markdown(f"<div class='info-box'><b>Tentang Jurusan:</b><br>{info['description']}</div>", unsafe_allow_html=True)
@@ -447,7 +487,6 @@ def render_results_dashboard():
         pdf.cell(0, 10, f"Rekomendasi Utama: {top_rec['major']} ({top_rec['score']}%)", ln=1)
         pdf.ln(5)
         
-        # Bagian Penjelasan AI di PDF
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, "Analisis Keputusan AI:", ln=1)
         pdf.set_font("Arial", '', 11)
@@ -455,7 +494,6 @@ def render_results_dashboard():
         pdf.multi_cell(0, 8, exp_clean)
         pdf.ln(5)
         
-        # Bagian Info Jurusan
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, "Deskripsi Jurusan:", ln=1)
         pdf.set_font("Arial", '', 11)
