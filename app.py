@@ -44,7 +44,7 @@ def setup_nltk_failsafe():
 setup_nltk_failsafe()
 
 st.set_page_config(
-    page_title="AI Career Guidance (Final Fix)", 
+    page_title="AI Career Guidance (Smart Filter)", 
     page_icon="🎓", 
     layout="wide", 
     initial_sidebar_state="expanded"
@@ -65,8 +65,9 @@ st.markdown("""
 
 class VectorGenerator:
     def __init__(self):
+        # [UPDATE] Memperketat keyword Matematika agar tidak sembarang "analisis" masuk
         self.keywords = {
-            'math': ['matematika', 'hitung', 'logika', 'komputasi', 'algoritma', 'analisis data', 'angka', 'teknik', 'rekayasa', 'sistem', 'kalkulus', 'statistika'],
+            'math': ['matematika', 'hitung', 'logika', 'komputasi', 'algoritma', 'analisis data', 'numerik', 'kuantitatif', 'kalkulus', 'statistika', 'aljabar', 'geometri', 'persamaan'],
             'verbal': ['bahasa', 'sastra', 'tulis', 'baca', 'komunikasi', 'jurnalistik', 'pidato', 'inggris', 'terjemah', 'naskah', 'sejarah', 'diplomasi', 'narasi', 'dokumen'],
             'social': ['sosial', 'masyarakat', 'manusia', 'bantu', 'hukum', 'politik', 'psikologi', 'manajemen', 'bisnis', 'tim', 'pimpin', 'ekonomi', 'administrasi', 'publik'],
             'art': ['seni', 'desain', 'gambar', 'musik', 'kreatif', 'film', 'visual', 'estetika', 'budaya', 'arsitektur', 'dekorasi'],
@@ -128,7 +129,6 @@ class VectorGenerator:
             scores['math'] = 0.6
             scores['science'] = 0.4
 
-        # Keyword counting
         for dim, keys in self.keywords.items():
             count = 0
             for key in keys:
@@ -257,7 +257,14 @@ class AutonomousKnowledgeBase:
             "https://id.wikipedia.org/wiki/Kategori:Ilmu_sosial"
         ]
         new_found = []
-        blacklist = ["daftar", "kategori", "metode", "teori", "sejarah", "tokoh", "buku", "portal", "halaman", "rintisan", "isme", "gerakan", "ideologi", "konsep", "filsafat", "cabang"]
+        
+        # [UPDATE PENTING] Filter Blacklist Diperketat agar 'Analisis Perilaku' tidak masuk
+        blacklist = [
+            "daftar", "kategori", "metode", "teori", "sejarah", "tokoh", 
+            "buku", "portal", "halaman", "rintisan", "isme", "gerakan", 
+            "ideologi", "konsep", "filsafat", "cabang", "terapan", 
+            "perilaku", "eksperimental", "klinis", "kepribadian"
+        ]
         
         for discovery_url in urls:
             try:
@@ -270,6 +277,7 @@ class AutonomousKnowledgeBase:
                         major_name = raw_name.replace("Kategori:", "").strip()
                         major_lower = major_name.lower()
                         
+                        # Filter Cerdas
                         if (not any(bad in major_lower for bad in blacklist)) and \
                            (major_name not in self.target_majors) and \
                            (len(major_name) < 50) and (len(major_name) > 3):
@@ -396,30 +404,22 @@ class AdvancedCareerAI:
     def _calculate_essay_bonus(self, essay_analysis, major):
         bonus = 0
         text = " ".join(essay_analysis.get('overall', {}).get('key_phrases', [])).lower()
-        full_essay = essay_analysis.get('raw_text', '').lower()
         name = major.lower()
         
-        positive_words = ['suka', 'cinta', 'tertarik', 'senang', 'impian', 'hobi', 'antusias', 'ingin', 'mau']
-        negative_words = ['benci', 'bosan', 'sulit', 'tidak suka', 'malas', 'lemah', 'bingung']
-        
-        is_positive_tone = any(w in full_essay for w in positive_words)
-        is_negative_tone = any(w in full_essay for w in negative_words)
-        
-        if is_positive_tone and not is_negative_tone:
-            if 'matematika' in name and ('logika' in text or 'angka' in text or 'hitung' in text):
-                bonus += 7
-            if ('sejarah' in name or 'arkeologi' in name) and ('sejarah' in text or 'masa lalu' in text or 'kuno' in text):
-                bonus += 7
-            if 'teknik' in name and ('teknologi' in text or 'mesin' in text):
-                bonus += 3
-            if 'kimia' in name and ('kimia' in text or 'reaksi' in text):
-                bonus += 5
-            if 'sosial' in name and ('masyarakat' in text):
-                bonus += 3
-            if 'seni' in name and ('gambar' in text):
-                bonus += 3
-            if 'dokter' in name and ('kesehatan' in text):
-                bonus += 3
+        if 'matematika' in name and ('logika' in text or 'angka' in text or 'hitung' in text):
+            bonus += 7
+        if ('sejarah' in name or 'arkeologi' in name) and ('sejarah' in text or 'masa lalu' in text or 'kuno' in text):
+            bonus += 7
+        if 'teknik' in name and ('teknologi' in text or 'mesin' in text):
+            bonus += 3
+        if 'kimia' in name and ('kimia' in text or 'reaksi' in text):
+            bonus += 5
+        if 'sosial' in name and ('masyarakat' in text):
+            bonus += 3
+        if 'seni' in name and ('gambar' in text):
+            bonus += 3
+        if 'dokter' in name and ('kesehatan' in text):
+            bonus += 3
         return bonus
 
 class EssayAnalyzer:
