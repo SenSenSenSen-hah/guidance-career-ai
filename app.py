@@ -38,7 +38,7 @@ def setup_nltk_failsafe():
 
 setup_nltk_failsafe()
 
-st.set_page_config(page_title="AI Career Guidance (Ultimate)", page_icon="🧠", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="AI Career Guidance (Multi-Option)", page_icon="🎯", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
@@ -47,15 +47,13 @@ st.markdown("""
     .info-box { background-color: #e3f2fd; padding: 10px; border-radius: 5px; border-left: 4px solid #2196f3; font-size: 0.9em; }
     .success-box { background-color: #e8f5e9; padding: 10px; border-radius: 5px; border-left: 4px solid #4caf50; font-size: 0.9em; }
     .reasoning-text { font-style: italic; color: #555; border-left: 3px solid #ff9800; padding-left: 10px; margin-top: 10px; }
+    .rank-badge { background-color: #4e54c8; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.8em; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==================== 2. ENGINE PENERJEMAH & INSIGHT GENERATOR ====================
 
 class VectorGenerator:
-    """
-    Mengubah Deskripsi Teks menjadi Vektor Matematika dengan Logika Rumpun Ilmu.
-    """
     def __init__(self):
         self.keywords = {
             'math': ['matematika', 'hitung', 'logika', 'komputasi', 'algoritma', 'analisis data', 'angka', 'teknik', 'rekayasa', 'sistem', 'kalkulus', 'statistika'],
@@ -68,43 +66,27 @@ class VectorGenerator:
     def generate_vector(self, text, major_name):
         text = text.lower()
         name = major_name.lower()
-        
-        # 1. Base Stats (Berdasarkan Nama Jurusan)
         scores = {'math': 0.1, 'verbal': 0.1, 'social': 0.1, 'art': 0.1, 'science': 0.1}
         
-        # Logika Teknik & Komputer
+        # Base Stats
         if 'teknik' in name or 'rekayasa' in name: scores['math'] = 0.6; scores['science'] = 0.5
-        if 'kimia' in name and 'teknik' in name: scores['science'] = 0.9; scores['math'] = 0.7 # Boost Teknik Kimia
+        if 'kimia' in name and 'teknik' in name: scores['science'] = 0.9; scores['math'] = 0.7
         if 'komputer' in name or 'informatika' in name or 'sistem' in name: scores['math'] = 0.8; scores['science'] = 0.3; scores['art'] = 0.3
-        
-        # Logika Sains & Kesehatan
-        if any(x in name for x in ['kedokteran', 'gizi', 'kesehatan', 'farmasi']):
-            scores['science'] = 0.8; scores['social'] = 0.5; scores['math'] = 0.4
-        if any(x in name for x in ['fisika', 'kimia', 'biologi', 'astronomi', 'matematika', 'statistika']):
-            scores['science'] = 0.7; scores['math'] = 0.7
-            
-        # Logika Sosial & Humaniora
-        if any(x in name for x in ['ekonomi', 'akuntansi', 'manajemen', 'bisnis']):
-            scores['social'] = 0.6; scores['math'] = 0.6; scores['verbal'] = 0.4
-        if any(x in name for x in ['hukum', 'politik', 'hubungan internasional', 'sosiologi', 'psikologi']):
-            scores['social'] = 0.8; scores['verbal'] = 0.6; scores['math'] = 0.3
-        if any(x in name for x in ['sastra', 'bahasa', 'sejarah', 'antropologi', 'komunikasi']):
-            scores['verbal'] = 0.8; scores['social'] = 0.6; scores['math'] = 0.2
-            if 'sejarah' in name: scores['verbal'] = 0.9; scores['social'] = 0.8 # Boost Sejarah
-            
-        # Logika Seni
-        if any(x in name for x in ['seni', 'desain', 'film', 'musik', 'arsitektur']):
-            scores['art'] = 0.8; scores['verbal'] = 0.4
-            if 'arsitektur' in name: scores['math'] = 0.6; scores['science'] = 0.4
+        if any(x in name for x in ['kedokteran', 'gizi', 'kesehatan', 'farmasi']): scores['science'] = 0.8; scores['social'] = 0.5; scores['math'] = 0.4
+        if any(x in name for x in ['fisika', 'kimia', 'biologi', 'astronomi', 'matematika', 'statistika']): scores['science'] = 0.7; scores['math'] = 0.7
+        if any(x in name for x in ['ekonomi', 'akuntansi', 'manajemen', 'bisnis']): scores['social'] = 0.6; scores['math'] = 0.6; scores['verbal'] = 0.4
+        if any(x in name for x in ['hukum', 'politik', 'hubungan internasional', 'sosiologi', 'psikologi']): scores['social'] = 0.8; scores['verbal'] = 0.6; scores['math'] = 0.3
+        if any(x in name for x in ['sastra', 'bahasa', 'sejarah', 'antropologi', 'komunikasi']): scores['verbal'] = 0.8; scores['social'] = 0.6; scores['math'] = 0.2
+        if 'sejarah' in name: scores['verbal'] = 0.9; scores['social'] = 0.8
+        if any(x in name for x in ['seni', 'desain', 'film', 'musik', 'arsitektur']): scores['art'] = 0.8; scores['verbal'] = 0.4
+        if 'arsitektur' in name: scores['math'] = 0.6; scores['science'] = 0.4
 
-        # 2. Keyword Boost (Dari Deskripsi)
         for dim, keys in self.keywords.items():
             count = 0
             for key in keys:
                 if key in text: count += 1
             scores[dim] += min(count * 0.1, 0.4)
 
-        # 3. Normalisasi
         vector = []
         for dim in ['math', 'verbal', 'social', 'art', 'science']:
             val = min(scores[dim], 1.0); val = max(val, 0.1)
@@ -114,11 +96,9 @@ class VectorGenerator:
 class CareerInsightGenerator:
     def generate_insights(self, major_name):
         name = major_name.lower()
-        # Default
         careers = ["Praktisi Profesional", "Konsultan", "Akademisi/Peneliti", "Wirausahawan", "Pegawai Negeri Sipil"]
         develop = ["Soft Skill Komunikasi", "Manajemen Waktu", "Bahasa Asing (Inggris)", "Literasi Digital"]
         
-        # Mapping Logic
         if 'teknik' in name or 'rekayasa' in name:
             careers = ["Engineer", "Project Manager", "Site Supervisor", "R&D Specialist", "Konsultan Teknik"]
             develop = ["Sertifikasi Insinyur", "Manajemen Proyek", "Software CAD/Simulasi", "K3 (Keselamatan Kerja)"]
@@ -143,7 +123,7 @@ class CareerInsightGenerator:
             
         return careers, develop
 
-# ==================== 3. AUTONOMOUS KNOWLEDGE BASE (SMART CRAWLER) ====================
+# ==================== 3. AUTONOMOUS KNOWLEDGE BASE ====================
 
 class AutonomousKnowledgeBase:
     _instance = None
@@ -153,8 +133,6 @@ class AutonomousKnowledgeBase:
         self.db_file = 'knowledge_base_v2.json'
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         self.vector_gen = VectorGenerator()
-        
-        # Seed Data Awal
         initial_majors = [
             'Teknik Informatika', 'Sistem Informasi', 'Kedokteran', 'Psikologi', 
             'Manajemen', 'Akuntansi', 'Ilmu Komunikasi', 'Desain Komunikasi Visual',
@@ -163,15 +141,13 @@ class AutonomousKnowledgeBase:
             'Teknik Kimia', 'Teknik Industri', 'Teknik Mesin', 'Statistika',
             'Agroteknologi', 'Administrasi Bisnis', 'Fisika Murni', 'Biologi'
         ]
-        
         self.data = self._load_db()
         self.target_majors = list(set(initial_majors + list(self.data.keys())))
         self.is_running = False
 
     def _load_db(self):
         if os.path.exists(self.db_file):
-            try:
-                with open(self.db_file, 'r') as f: return json.load(f)
+            try: with open(self.db_file, 'r') as f: return json.load(f)
             except: return {}
         return {}
 
@@ -185,25 +161,17 @@ class AutonomousKnowledgeBase:
             url = f"https://id.wikipedia.org/api/rest_v1/page/summary/{query}"
             response = requests.get(url, headers=self.headers, timeout=5)
             description = ""; source = "Wikipedia"; url_link = "#"
-            
             if response.status_code == 200:
                 res_data = response.json()
                 description = res_data.get('extract', '')
                 url_link = res_data.get('content_urls', {}).get('desktop', {}).get('page', '#')
-            
-            if not description:
-                description = f"Jurusan {major_name} di perguruan tinggi."
-                source = "Internal Fallback"
-
+            if not description: description = f"Jurusan {major_name} di perguruan tinggi."; source = "Internal Fallback"
             generated_vector = self.vector_gen.generate_vector(description, major_name)
             return {'description': description, 'vector': generated_vector, 'source': source, 'url': url_link, 'timestamp': datetime.now().isoformat()}
         except Exception:
             return {'description': "Data tidak tersedia.", 'vector': [0.2]*5, 'source': 'Error', 'url': '#', 'timestamp': datetime.now().isoformat()}
 
     def discover_new_majors(self):
-        """
-        Robot Penjelajah dengan Cakupan Luas (Multi-URL + Relaxed Filter)
-        """
         urls = [
             "https://id.wikipedia.org/wiki/Kategori:Disiplin_akademik",
             "https://id.wikipedia.org/wiki/Kategori:Jurusan_pendidikan",
@@ -212,34 +180,19 @@ class AutonomousKnowledgeBase:
             "https://id.wikipedia.org/wiki/Kategori:Cabang_psikologi",
             "https://id.wikipedia.org/wiki/Kategori:Ilmu_sosial"
         ]
-        
         new_found = []
-        # Blacklist diperlonggar (hapus "ilmu", "studi")
         blacklist = ["daftar", "kategori", "metode", "teori", "sejarah", "tokoh", "buku", "portal", "halaman", "rintisan"]
-        
         for discovery_url in urls:
             try:
                 response = requests.get(discovery_url, headers=self.headers, timeout=5)
                 if response.status_code == 200:
                     soup = BeautifulSoup(response.content, 'html.parser')
-                    # Ambil link dari Halaman Artikel DAN Subkategori
                     links = soup.select("#mw-pages a, #mw-subcategories a")
-                    
                     for link in links:
-                        raw_name = link.text
-                        major_name = raw_name.replace("Kategori:", "").strip()
-                        major_lower = major_name.lower()
-                        
-                        if (not any(bad in major_lower for bad in blacklist)) and \
-                           (major_name not in self.target_majors) and \
-                           (len(major_name) < 50) and (len(major_name) > 3):
-                            
-                            self.target_majors.append(major_name)
-                            new_found.append(major_name)
-            except Exception as e:
-                print(f"Error di {discovery_url}: {e}")
-                continue
-                
+                        raw_name = link.text; major_name = raw_name.replace("Kategori:", "").strip(); major_lower = major_name.lower()
+                        if (not any(bad in major_lower for bad in blacklist)) and (major_name not in self.target_majors) and (len(major_name) < 50) and (len(major_name) > 3):
+                            self.target_majors.append(major_name); new_found.append(major_name)
+            except Exception: continue
         return list(set(new_found))
 
     def get_all_vectors(self):
@@ -277,10 +230,7 @@ class AdvancedCareerAI:
         interests = user_data.get('interests', {})
         competencies = user_data.get('competencies', {})
         
-        math_wajib = academics.get('Matematika (Wajib)', 0)
-        indo_wajib = academics.get('Bahasa Indonesia', 0)
-        inggris_wajib = academics.get('Bahasa Inggris', 0)
-        
+        math_wajib = academics.get('Matematika (Wajib)', 0); indo_wajib = academics.get('Bahasa Indonesia', 0); inggris_wajib = academics.get('Bahasa Inggris', 0)
         math_minat = academics.get('Matematika (Peminatan)', math_wajib)
         fisika = academics.get('Fisika', 0); kimia = academics.get('Kimia', 0); biologi = academics.get('Biologi', 0)
         ekonomi = academics.get('Ekonomi', 0); sosiologi = academics.get('Sosiologi', 0); geografi = academics.get('Geografi', 0)
@@ -308,7 +258,6 @@ class AdvancedCareerAI:
         strong_match = []
         for i in range(5):
             if user_vec[i] > 0.55 and major_vec[i] > 0.55: strong_match.append(dims[i])
-        
         explanation = f"AI merekomendasikan {major_name} karena profil Anda sangat kuat pada aspek {', '.join(strong_match)}."
         if not strong_match: explanation = f"AI merekomendasikan {major_name} karena profil Anda memiliki keseimbangan yang sesuai dengan karakteristik jurusan ini."
         if has_bonus: explanation += " Ditambah lagi, esai reflektif Anda mengandung kata kunci spesifik yang sangat relevan."
@@ -321,22 +270,15 @@ class AdvancedCareerAI:
             major_vec = np.array(vector).reshape(1, -1)
             similarity = cosine_similarity(user_vector, major_vec)[0][0]
             match_score = similarity * 100
-            
             bonus = 0; has_bonus = False
             if user_data.get('essay_analysis'):
                 bonus = self._calculate_essay_bonus(user_data['essay_analysis'], major)
                 match_score += bonus
                 if bonus > 0: has_bonus = True
-            
             explanation = self._generate_explanation(user_vector[0], vector, major, has_bonus)
             careers, develop = self.insight_gen.generate_insights(major)
-
-            results.append({
-                'major': major, 'score': round(min(match_score, 99.9), 1),
-                'vector': vector, 'user_vector': user_vector[0].tolist(), 
-                'explanation': explanation, 'careers': careers, 'develop': develop
-            })
-        return sorted(results, key=lambda x: x['score'], reverse=True)[:3]
+            results.append({'major': major, 'score': round(min(match_score, 99.9), 1), 'vector': vector, 'user_vector': user_vector[0].tolist(), 'explanation': explanation, 'careers': careers, 'develop': develop})
+        return sorted(results, key=lambda x: x['score'], reverse=True)[:5] # Return top 5 for processing
 
     def _calculate_essay_bonus(self, essay_analysis, major):
         bonus = 0
@@ -355,20 +297,16 @@ class EssayAnalyzer:
         full_text = " ".join(essays.values())
         if NLTK_READY:
             try:
-                blob = TextBlob(full_text)
-                polarity = blob.sentiment.polarity
-                keywords = list(set(blob.noun_phrases))[:8]
+                blob = TextBlob(full_text); polarity = blob.sentiment.polarity; keywords = list(set(blob.noun_phrases))[:8]
             except: polarity = 0; keywords = self._manual_keyword_extraction(full_text)
         else: polarity = 0; keywords = self._manual_keyword_extraction(full_text)
         sent_label = "POSITIF" if polarity > 0.1 else "NEGATIF" if polarity < -0.1 else "NETRAL"
         return {'overall': {'sentiment': {'score': polarity, 'label': sent_label}, 'key_phrases': keywords, 'word_count': len(full_text.split())}}
-    
     def _manual_keyword_extraction(self, text):
         words = re.findall(r'\w+', text.lower())
-        stopwords = ['yang', 'dan', 'di', 'ke', 'dari', 'ini', 'itu', 'adalah', 'saya', 'ingin', 'suka']
-        return list(set([w for w in words if w not in stopwords and len(w) > 4]))[:8]
+        stopwords = ['yang', 'dan', 'di', 'ke', 'dari', 'ini', 'itu', 'adalah', 'saya', 'ingin', 'suka']; return list(set([w for w in words if w not in stopwords and len(w) > 4]))[:8]
 
-# ==================== 5. PDF REPORT ====================
+# ==================== 5. PDF REPORT (MULTI RECOMMENDATION) ====================
 
 class PDFReport(FPDF):
     def header(self):
@@ -450,33 +388,72 @@ def render_results_dashboard():
     st.markdown("## 🏆 Hasil Rekomendasi Karir")
     with st.spinner("🤖 Robot sedang menghitung kecocokan dan membuat penjelasan..."):
         ai_engine = AdvancedCareerAI(); recommendations = ai_engine.generate_recommendations(st.session_state.user_data)
-    top_rec = recommendations[0]; kb = get_knowledge_base()
+    
+    # Mengambil 3 Teratas untuk ditampilkan
+    top_3 = recommendations[:3]
+    kb = get_knowledge_base()
+    
+    # Radar Chart (User vs Top 1)
     categories = ['Logika/Math', 'Verbal', 'Sosial', 'Seni', 'Sains']
     fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(r=top_rec['user_vector'], theta=categories, fill='toself', name='Profil Kamu', line_color='#1f77b4'))
-    fig.add_trace(go.Scatterpolar(r=top_rec['vector'], theta=categories, fill='toself', name=f"Profil {top_rec['major']}", line_color='#ff7f0e', opacity=0.5))
+    fig.add_trace(go.Scatterpolar(r=top_3[0]['user_vector'], theta=categories, fill='toself', name='Profil Kamu', line_color='#1f77b4'))
+    fig.add_trace(go.Scatterpolar(r=top_3[0]['vector'], theta=categories, fill='toself', name=f"Profil {top_3[0]['major']}", line_color='#ff7f0e', opacity=0.5))
     fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=True, height=400)
-    c1, c2 = st.columns([1, 1])
-    with c1: st.plotly_chart(fig, use_container_width=True)
-    with c2:
-        st.success(f"### 🥇 Rekomendasi: {top_rec['major']}")
-        st.metric("Tingkat Kecocokan", f"{top_rec['score']}%")
-        info = kb.get_info(top_rec['major'])
-        st.markdown(f"<div class='reasoning-text'><b>💡 Analisis AI:</b><br>{top_rec['explanation']}</div>", unsafe_allow_html=True)
-        st.write(""); st.markdown(f"<div class='info-box'><b>Tentang Jurusan:</b><br>{info['description']}</div>", unsafe_allow_html=True)
+    st.plotly_chart(fig, use_container_width=True)
 
-    if st.button("📄 Download PDF Lengkap"):
-        pdf = PDFReport(); pdf.add_page(); pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, f"Nama: {st.session_state.user_data.get('name')}", ln=1)
-        pdf.cell(0, 10, f"Rekomendasi Utama: {top_rec['major']} ({top_rec['score']}%)", ln=1); pdf.ln(5)
-        pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, "Analisis Keputusan AI:", ln=1); pdf.set_font("Arial", '', 11)
-        pdf.multi_cell(0, 8, top_rec['explanation'].encode('latin-1', 'replace').decode('latin-1')); pdf.ln(5)
-        pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, "Deskripsi Jurusan:", ln=1); pdf.set_font("Arial", '', 11)
-        pdf.multi_cell(0, 8, kb.get_info(top_rec['major'])['description'].encode('latin-1', 'replace').decode('latin-1')); pdf.ln(5)
-        pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, "Prospek Karir:", ln=1); pdf.set_font("Arial", '', 11)
-        for career in top_rec['careers']: pdf.cell(0, 8, f"- {career.encode('latin-1', 'replace').decode('latin-1')}", ln=1)
-        pdf.ln(5); pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, "Hal yang Bisa Dikembangkan:", ln=1); pdf.set_font("Arial", '', 11)
-        for item in top_rec['develop']: pdf.cell(0, 8, f"- {item.encode('latin-1', 'replace').decode('latin-1')}", ln=1)
+    # TAMPILAN TABS UNTUK 3 PILIHAN
+    st.markdown("### 🔍 Detail Pilihan Terbaik")
+    tab1, tab2, tab3 = st.tabs([f"🥇 {top_3[0]['major']}", f"🥈 {top_3[1]['major']}", f"🥉 {top_3[2]['major']}"])
+    
+    for i, tab in enumerate([tab1, tab2, tab3]):
+        rec = top_3[i]
+        info = kb.get_info(rec['major'])
+        with tab:
+            st.success(f"**Skor Kecocokan: {rec['score']}%**")
+            st.markdown(f"<div class='reasoning-text'><b>💡 Analisis AI:</b><br>{rec['explanation']}</div>", unsafe_allow_html=True)
+            st.markdown("---")
+            st.markdown(f"**📖 Deskripsi Jurusan:**\n{info['description']}")
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**💼 Prospek Karir:**")
+                for car in rec['careers']: st.write(f"- {car}")
+            with c2:
+                st.markdown("**📈 Hal yang Perlu Dikembangkan:**")
+                for dev in rec['develop']: st.write(f"- {dev}")
+
+    if st.button("📄 Download PDF (3 Rekomendasi)"):
+        pdf = PDFReport()
+        # Halaman 1: Cover & Data Diri
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', 16); pdf.cell(0, 10, "HASIL ANALISIS KARIR AI", 0, 1, 'C'); pdf.ln(10)
+        pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, f"Nama Peserta: {st.session_state.user_data.get('name')}", ln=1)
+        pdf.cell(0, 10, f"Tanggal: {datetime.now().strftime('%d-%m-%Y')}", ln=1); pdf.ln(10)
+        
+        # Loop untuk 3 Rekomendasi
+        for i, rec in enumerate(top_3):
+            info = kb.get_info(rec['major'])
+            if i > 0: pdf.add_page() # Halaman baru untuk setiap jurusan
+            
+            title_rank = f"PILIHAN {i+1}: {rec['major']} ({rec['score']}%)"
+            pdf.set_fill_color(230, 230, 250)
+            pdf.set_font("Arial", 'B', 14); pdf.cell(0, 12, title_rank, 0, 1, 'L', 1); pdf.ln(5)
+            
+            pdf.set_font("Arial", 'B', 11); pdf.cell(0, 8, "Analisis AI:", ln=1)
+            pdf.set_font("Arial", '', 11); pdf.multi_cell(0, 6, rec['explanation'].encode('latin-1', 'replace').decode('latin-1')); pdf.ln(5)
+            
+            pdf.set_font("Arial", 'B', 11); pdf.cell(0, 8, "Deskripsi Jurusan:", ln=1)
+            pdf.set_font("Arial", '', 11); pdf.multi_cell(0, 6, info['description'].encode('latin-1', 'replace').decode('latin-1')); pdf.ln(5)
+            
+            pdf.set_font("Arial", 'B', 11); pdf.cell(0, 8, "Prospek Karir:", ln=1)
+            pdf.set_font("Arial", '', 11)
+            for c in rec['careers']: pdf.cell(0, 6, f"- {c.encode('latin-1', 'replace').decode('latin-1')}", ln=1)
+            pdf.ln(5)
+            
+            pdf.set_font("Arial", 'B', 11); pdf.cell(0, 8, "Pengembangan Diri:", ln=1)
+            pdf.set_font("Arial", '', 11)
+            for d in rec['develop']: pdf.cell(0, 6, f"- {d.encode('latin-1', 'replace').decode('latin-1')}", ln=1)
+
         pdf_out = pdf.output(dest='S'); b64 = base64.b64encode(pdf_out).decode()
         href = f'<a href="data:application/octet-stream;base64,{b64}" download="Laporan_Lengkap_AI.pdf">Klik untuk Download PDF</a>'
         st.markdown(href, unsafe_allow_html=True)
