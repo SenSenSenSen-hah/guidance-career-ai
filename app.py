@@ -42,8 +42,8 @@ def setup_nltk_failsafe():
 setup_nltk_failsafe()
 
 st.set_page_config(
-    page_title="AI Career Guidance (Complete Report)",
-    page_icon="🎓",
+    page_title="AI Career Guidance (Ultimate Fix)",
+    page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -95,55 +95,45 @@ class VectorGenerator:
             vector.append(round(val, 2))
         return vector
 
-# [BARU] Class untuk Menghasilkan Insight Karir & Pengembangan Diri
 class CareerInsightGenerator:
     def generate_insights(self, major_name):
         name = major_name.lower()
         
-        # Default (Fallback)
+        # Default
         careers = ["Praktisi Profesional", "Konsultan", "Akademisi/Peneliti", "Wirausahawan", "Pegawai Negeri Sipil"]
         develop = ["Soft Skill Komunikasi", "Manajemen Waktu", "Bahasa Asing (Inggris)", "Literasi Digital"]
         
-        # Logika Pemetaan Berbasis Kata Kunci Jurusan
         if 'informatika' in name or 'komputer' in name or 'sistem' in name:
             careers = ["Software Engineer", "Data Scientist", "System Analyst", "IT Consultant", "Cyber Security Specialist"]
             develop = ["Logika Algoritma", "Bahasa Pemrograman (Python/Java)", "Problem Solving", "Portofolio Project"]
-            
         elif 'dokter' in name or 'kedokteran' in name or 'kesehatan' in name or 'farmasi' in name:
             careers = ["Dokter/Tenaga Medis", "Peneliti Kesehatan", "Konsultan Medis", "Manajemen Rumah Sakit", "Apoteker"]
             develop = ["Ketelitian Tinggi", "Empati & Komunikasi Pasien", "Kecermatan Analisis", "Etika Profesi"]
-            
         elif 'ekonomi' in name or 'manajemen' in name or 'akuntansi' in name or 'bisnis' in name:
             careers = ["Manajer Bisnis", "Akuntan Publik", "Financial Analyst", "Entrepreneur", "Marketing Specialist"]
             develop = ["Analisis Data Keuangan", "Kepemimpinan (Leadership)", "Negosiasi", "Penguasaan Microsoft Excel"]
-            
         elif 'komunikasi' in name or 'hubungan' in name or 'sastra' in name:
             careers = ["Public Relations", "Content Writer/Creator", "Jurnalis", "Diplomat", "Translator"]
             develop = ["Public Speaking", "Penulisan Kreatif", "Berpikir Kritis", "Networking/Relasi"]
-            
         elif 'desain' in name or 'seni' in name or 'arsitektur' in name:
             careers = ["Graphic Designer", "Art Director", "Arsitek", "UI/UX Designer", "Illustrator"]
             develop = ["Kreativitas Visual", "Penguasaan Software Desain", "Portofolio Karya", "Design Thinking"]
-            
         elif 'hukum' in name:
             careers = ["Pengacara/Advokat", "Hakim/Jaksa", "Konsultan Hukum (In-house)", "Notaris", "HRD/Personalia"]
             develop = ["Analisis Kasus", "Public Speaking & Debat", "Penulisan Dokumen Legal", "Integritas"]
-            
-        elif 'teknik' in name: # Teknik umum (Sipil, Mesin, Elektro, Kimia)
+        elif 'teknik' in name:
             careers = ["Project Engineer", "Site Manager", "R&D Specialist", "Process Engineer", "Konsultan Teknik"]
             develop = ["Matematika Teknik", "Manajemen Proyek", "Analisis Sistem", "Sertifikasi Keahlian"]
-            
         elif 'psikologi' in name:
             careers = ["HRD/Recruiter", "Psikolog Klinis", "Konselor Pendidikan", "Peneliti Perilaku", "Trainer Pengembangan Diri"]
             develop = ["Active Listening", "Empati", "Observasi Perilaku", "Analisis Data Statistik"]
-
         elif 'sejarah' in name:
             careers = ["Sejarawan", "Peneliti Budaya", "Kurator Museum", "Penulis/Jurnalis", "Pemandu Wisata Sejarah"]
             develop = ["Kemampuan Riset", "Berpikir Kritis", "Penulisan Naratif", "Analisis Dokumen"]
 
         return careers, develop
 
-# ==================== 3. AUTONOMOUS KNOWLEDGE BASE ====================
+# ==================== 3. AUTONOMOUS KNOWLEDGE BASE (FIXED MISSING METHOD) ====================
 
 class AutonomousKnowledgeBase:
     _instance = None
@@ -153,8 +143,8 @@ class AutonomousKnowledgeBase:
         self.db_file = 'knowledge_base_v2.json'
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         self.vector_gen = VectorGenerator()
-        self.data = self._load_db()
         
+        # Seed Data
         initial_majors = [
             'Teknik Informatika', 'Sistem Informasi', 'Kedokteran', 'Psikologi', 
             'Manajemen', 'Akuntansi', 'Ilmu Komunikasi', 'Desain Komunikasi Visual',
@@ -162,6 +152,8 @@ class AutonomousKnowledgeBase:
             'Ilmu Sejarah', 'Hubungan Internasional', 'Sastra Indonesia',
             'Teknik Kimia', 'Teknik Industri', 'Teknik Mesin', 'Statistika'
         ]
+        
+        self.data = self._load_db()
         self.target_majors = list(set(initial_majors + list(self.data.keys())))
         self.is_running = False
 
@@ -199,21 +191,28 @@ class AutonomousKnowledgeBase:
         except Exception:
             return {'description': "Data tidak tersedia.", 'vector': [0.2]*5, 'source': 'Error', 'url': '#', 'timestamp': datetime.now().isoformat()}
 
+    # [INI METODE YANG HILANG SEBELUMNYA - SUDAH DIKEMBALIKAN]
     def discover_new_majors(self):
+        """Robot menjelajahi kategori Wikipedia untuk mencari jurusan baru"""
         discovery_url = "https://id.wikipedia.org/wiki/Kategori:Disiplin_akademik"
         new_found = []
         try:
             response = requests.get(discovery_url, headers=self.headers, timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.content, 'html.parser')
+                # Selector untuk mengambil link artikel
                 links = soup.select("#mw-pages a")
+                
                 for link in links:
                     major_name = link.text
+                    # Filter: tidak duplikat dan panjang nama wajar
                     if major_name not in self.target_majors and len(major_name) < 35:
                         self.target_majors.append(major_name)
                         new_found.append(major_name)
             return new_found
-        except Exception: return []
+        except Exception as e:
+            print(f"Discovery Error: {e}")
+            return []
 
     def get_all_vectors(self):
         vectors = {}
@@ -234,13 +233,13 @@ class AutonomousKnowledgeBase:
 def get_knowledge_base():
     return AutonomousKnowledgeBase()
 
-# ==================== 4. AI ENGINE (EXPLAINABLE + CAREER INSIGHT) ====================
+# ==================== 4. AI ENGINE (EXPLAINABLE) ====================
 
 class AdvancedCareerAI:
     def __init__(self):
         kb = get_knowledge_base()
         self.major_vectors = kb.get_all_vectors()
-        self.insight_gen = CareerInsightGenerator() # Tambahan Generator Insight
+        self.insight_gen = CareerInsightGenerator()
 
     def _normalize_score(self, val, max_val=100):
         if val is None: return 0
@@ -302,16 +301,13 @@ class AdvancedCareerAI:
                 if bonus > 0: has_bonus = True
             
             explanation = self._generate_explanation(user_vector[0], vector, major, has_bonus)
-            
-            # Generate Career Insights
             careers, develop = self.insight_gen.generate_insights(major)
 
             results.append({
                 'major': major, 'score': round(min(match_score, 99.9), 1),
                 'vector': vector, 'user_vector': user_vector[0].tolist(), 
                 'explanation': explanation,
-                'careers': careers, # Data Karir
-                'develop': develop  # Data Hal yang perlu dikembangkan
+                'careers': careers, 'develop': develop
             })
         return sorted(results, key=lambda x: x['score'], reverse=True)[:3]
 
@@ -347,7 +343,7 @@ class EssayAnalyzer:
         unique_words = list(set([w for w in words if w not in stopwords and len(w) > 4]))
         return unique_words[:8]
 
-# ==================== 5. PDF REPORT (UPDATED WITH CAREER INSIGHTS) ====================
+# ==================== 5. PDF REPORT (FINAL) ====================
 
 class PDFReport(FPDF):
     def header(self):
@@ -491,14 +487,11 @@ def render_results_dashboard():
     if st.button("📄 Download PDF Lengkap"):
         pdf = PDFReport()
         pdf.add_page()
-        
-        # 1. Data Diri
         pdf.set_font("Arial", 'B', 14)
         pdf.cell(0, 10, f"Nama: {st.session_state.user_data.get('name')}", ln=1)
         pdf.cell(0, 10, f"Rekomendasi Utama: {top_rec['major']} ({top_rec['score']}%)", ln=1)
         pdf.ln(5)
         
-        # 2. Penjelasan AI
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, "Analisis Keputusan AI:", ln=1)
         pdf.set_font("Arial", '', 11)
@@ -506,15 +499,13 @@ def render_results_dashboard():
         pdf.multi_cell(0, 8, exp_clean)
         pdf.ln(5)
         
-        # 3. Deskripsi Jurusan
         pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, "Deskripsi Jurusan (Wikipedia):", ln=1)
+        pdf.cell(0, 10, "Deskripsi Jurusan:", ln=1)
         pdf.set_font("Arial", '', 11)
         desc_clean = kb.get_info(top_rec['major'])['description'].encode('latin-1', 'replace').decode('latin-1')
         pdf.multi_cell(0, 8, desc_clean)
         pdf.ln(5)
 
-        # 4. [BARU] Prospek Karir
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, "Prospek Karir:", ln=1)
         pdf.set_font("Arial", '', 11)
@@ -522,7 +513,6 @@ def render_results_dashboard():
             pdf.cell(0, 8, f"- {career.encode('latin-1', 'replace').decode('latin-1')}", ln=1)
         pdf.ln(5)
 
-        # 5. [BARU] Hal yang Bisa Dikembangkan
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, "Hal yang Bisa Dikembangkan:", ln=1)
         pdf.set_font("Arial", '', 11)
