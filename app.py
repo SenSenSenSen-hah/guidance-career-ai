@@ -255,7 +255,10 @@ class AutonomousKnowledgeBase:
             "buku", "portal", "halaman", "rintisan", "isme", "gerakan", 
             "ideologi", "konsep", "filsafat", "cabang", "terapan", 
             "perilaku", "eksperimental", "klinis", "kepribadian",
-            "menurut", "bidang", "cendekiawan", "akademikus", "subyek"
+            "menurut", "bidang", "cendekiawan", "akademikus", "subyek",
+            "karya", "berdasarkan", "studi", "eutenika", "proyek", 
+            "organisasi", "penghargaan", "peristiwa", "abad", "dunia",
+            "lintas", "antardisiplin", "antar", "disiplin", "masa"
         ]
         
         for discovery_url in urls:
