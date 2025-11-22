@@ -43,9 +43,10 @@ def setup_nltk_failsafe():
 
 setup_nltk_failsafe()
 
+# [UPDATED] Menggunakan Emoji 🎓 sebagai Ikon Aplikasi
 st.set_page_config(
-    page_title="AI Career Guidance (Secure)", 
-    page_icon="🔐", 
+    page_title="AI Career Guidance", 
+    page_icon="🎓", 
     layout="wide", 
     initial_sidebar_state="expanded"
 )
@@ -394,51 +395,70 @@ class AdvancedCareerAI:
     def _calculate_essay_bonus(self, essay_analysis, major):
         bonus = 0
         text = " ".join(essay_analysis.get('overall', {}).get('key_phrases', [])).lower()
+        full_essay = essay_analysis.get('raw_text', '').lower()
         name = major.lower()
         
-        if ('sejarah' in name or 'arkeologi' in name) and ('sejarah' in text or 'masa lalu' in text or 'kuno' in text):
-            bonus += 7
-        if 'teknik' in name and ('teknologi' in text or 'mesin' in text):
-            bonus += 3
-        if 'kimia' in name and ('kimia' in text or 'reaksi' in text):
-            bonus += 5
-        if 'sosial' in name and ('masyarakat' in text):
-            bonus += 3
-        if 'seni' in name and ('gambar' in text):
-            bonus += 3
-        if 'dokter' in name and ('kesehatan' in text):
-            bonus += 3
+        positive_words = ['suka', 'cinta', 'tertarik', 'senang', 'impian', 'hobi', 'antusias', 'ingin', 'mau']
+        negative_words = ['benci', 'bosan', 'sulit', 'tidak suka', 'malas', 'lemah', 'bingung']
+        
+        is_positive_tone = any(w in full_essay for w in positive_words)
+        is_negative_tone = any(w in full_essay for w in negative_words)
+        
+        if is_positive_tone and not is_negative_tone:
+            if ('sejarah' in name or 'arkeologi' in name) and ('sejarah' in text or 'masa lalu' in text or 'kuno' in text):
+                bonus += 7
+            if 'teknik' in name and ('teknologi' in text or 'mesin' in text):
+                bonus += 3
+            if 'kimia' in name and ('kimia' in text or 'reaksi' in text):
+                bonus += 5
+            if 'sosial' in name and ('masyarakat' in text):
+                bonus += 3
+            if 'seni' in name and ('gambar' in text):
+                bonus += 3
+            if 'dokter' in name and ('kesehatan' in text):
+                bonus += 3
+            if 'matematika' in name and ('logika' in text or 'angka' in text):
+                bonus += 7
         return bonus
 
 class EssayAnalyzer:
     def analyze_essays(self, essays):
         full_text = " ".join(essays.values())
+        
+        positive_words = ['suka', 'cinta', 'tertarik', 'senang', 'impian', 'hobi', 'antusias', 'ingin', 'mau']
+        negative_words = ['benci', 'bosan', 'sulit', 'tidak suka', 'malas', 'lemah', 'bingung']
+        
+        pos_count = sum(1 for w in positive_words if w in full_text.lower())
+        neg_count = sum(1 for w in negative_words if w in full_text.lower())
+        
+        if pos_count > neg_count: sent_label = "POSITIF (Antusias)"
+        elif neg_count > pos_count: sent_label = "NEGATIF (Kurang Minat)"
+        else: sent_label = "NETRAL"
+        
         if NLTK_READY:
             try:
                 blob = TextBlob(full_text)
-                polarity = blob.sentiment.polarity
-                keywords = list(set(blob.noun_phrases))[:8]
+                keywords = list(set(blob.noun_phrases))[:10]
             except:
-                polarity = 0
                 keywords = self._manual_keyword_extraction(full_text)
         else:
-            polarity = 0
             keywords = self._manual_keyword_extraction(full_text)
             
-        sent_label = "POSITIF" if polarity > 0.1 else "NEGATIF" if polarity < -0.1 else "NETRAL"
+        keywords.extend(self._manual_keyword_extraction(full_text))
+        
         return {
             'overall': {
-                'sentiment': {'score': polarity, 'label': sent_label},
-                'key_phrases': keywords,
+                'sentiment': {'label': sent_label},
+                'key_phrases': list(set(keywords)),
                 'word_count': len(full_text.split())
-            }
+            },
+            'raw_text': full_text
         }
     
     def _manual_keyword_extraction(self, text):
         words = re.findall(r'\w+', text.lower())
-        stopwords = ['yang', 'dan', 'di', 'ke', 'dari', 'ini', 'itu', 'adalah', 'saya', 'ingin', 'suka']
-        unique_words = list(set([w for w in words if w not in stopwords and len(w) > 4]))
-        return unique_words[:8]
+        stopwords = ['yang', 'dan', 'di', 'ke', 'dari', 'ini', 'itu', 'adalah', 'saya', 'ingin', 'suka', 'sangat', 'mau', 'akan']
+        return list(set([w for w in words if w not in stopwords and len(w) > 4]))
 
 # ==================== 5. PDF REPORT (MULTI RECOMMENDATION) ====================
 
@@ -652,67 +672,44 @@ def render_results_dashboard():
 
 def main():
     st.markdown('<h1 class="main-header">🇮🇩 Autonomous Career AI</h1>', unsafe_allow_html=True)
-    
-    # --- SIDEBAR: KONTROL ROBOT ---
     with st.sidebar:
         st.header("🤖 Pusat Kontrol AI")
         kb = get_knowledge_base()
+        st.metric("Kapasitas Otak", f"{len(kb.target_majors)} Item")
         
-        # Statistik (Aman dilihat siapa saja)
-        st.metric("Kapasitas Otak", f"{len(kb.target_majors)} Jurusan")
-        
-        # Fitur Eksplorasi (Boleh diakses publik agar robot makin pintar)
         st.subheader("📡 Discovery Agent")
         if st.button("🕵️ Cari Jurusan Baru"):
             with st.spinner("Robot sedang menjelajahi Wikipedia..."):
                 new = kb.discover_new_majors()
-                if new: 
+                if new:
                     st.success(f"Menemukan {len(new)} jurusan baru!")
                     kb.get_all_vectors()
-                else: 
+                else:
                     st.info("Belum ada jurusan baru.")
-        
         st.markdown("---")
-        
-        # --- [FITUR ADMIN: DILINDUNGI PASSWORD] ---
         st.subheader("🔒 Area Admin")
         
-        # Checkbox untuk membuka menu admin
         show_admin = st.checkbox("Kelola Memori (Admin)")
-        
         if show_admin:
             password = st.text_input("Masukkan Password Admin:", type="password")
-            
-            # Ganti 'admin123' dengan password yang Anda inginkan
-            if password == "CobaAplikasiLagiYa123": 
+            if password == "CobaAplikasiLagiYa":
                 st.success("Akses Diterima ✅")
-                
-                st.write("---")
                 st.write("**💾 Database Control**")
-                
-                # 1. Download (Backup)
                 if os.path.exists(kb.db_file):
                     with open(kb.db_file, "rb") as f:
-                        st.download_button(
-                            label="📥 Download Backup JSON",
-                            data=f,
-                            file_name="backup_knowledge_base.json",
-                            mime="application/json"
-                        )
+                        st.download_button("📥 Backup Otak (JSON)", f, "backup_knowledge_base.json")
                 
-                # 2. Upload (Restore) - HANYA ADMIN YANG BISA
-                uploaded = st.file_uploader("📤 Upload Backup JSON", type=["json"])
+                uploaded = st.file_uploader("📤 Restore Memori", type=["json"])
                 if uploaded:
                     try:
                         data = json.load(uploaded)
                         with open(kb.db_file, "w") as f:
                             json.dump(data, f, indent=4)
-                        st.success("✅ Memori berhasil dipulihkan!")
+                        st.success("✅ Memori dipulihkan!")
                         time.sleep(1)
                         st.rerun()
                     except:
-                        st.error("File JSON rusak/tidak valid.")
-            
+                        st.error("File rusak.")
             elif password:
                 st.error("Password Salah ❌")
 
