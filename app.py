@@ -20,10 +20,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import plotly.graph_objects as go
 
-# ==================== 1. KONFIGURASI SISTEM & FAIL-SAFE NLTK ====================
+# ==================== 1. SETUP SYSTEM ====================
 
 NLTK_READY = False
-
 def setup_nltk_failsafe():
     global NLTK_READY
     resources = ['punkt', 'averaged_perceptron_tagger', 'brown']
@@ -34,19 +33,12 @@ def setup_nltk_failsafe():
         try:
             for resource in resources: nltk.download(resource, quiet=True)
             NLTK_READY = True
-        except Exception:
-            NLTK_READY = False
-    except Exception:
-        NLTK_READY = False
+        except Exception: NLTK_READY = False
+    except Exception: NLTK_READY = False
 
 setup_nltk_failsafe()
 
-st.set_page_config(
-    page_title="AI Career Guidance (Ultimate Fix)",
-    page_icon="🧠",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="AI Career Guidance (Universal Accuracy)", page_icon="🎯", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
@@ -58,82 +50,115 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ==================== 2. ENGINE PENERJEMAH & INSIGHT GENERATOR ====================
+# ==================== 2. SMART VECTOR GENERATOR (LOGIKA UNIVERSAL) ====================
 
 class VectorGenerator:
+    """
+    Menggunakan Logika Rumpun Ilmu (Faculty-Based Logic)
+    untuk akurasi tinggi pada semua jurusan.
+    """
     def __init__(self):
+        # Kamus Kata Kunci yang Diperluas
         self.keywords = {
-            'math': ['matematika', 'hitung', 'logika', 'komputasi', 'algoritma', 'analisis data', 'angka', 'teknik', 'rekayasa', 'sistem', 'kalkulus', 'statistika'],
-            'verbal': ['bahasa', 'sastra', 'tulis', 'baca', 'komunikasi', 'jurnalistik', 'pidato', 'inggris', 'terjemah', 'naskah', 'sejarah', 'diplomasi'],
-            'social': ['sosial', 'masyarakat', 'manusia', 'bantu', 'hukum', 'politik', 'psikologi', 'manajemen', 'bisnis', 'tim', 'pimpin', 'ekonomi', 'administrasi'],
-            'art': ['seni', 'desain', 'gambar', 'musik', 'kreatif', 'film', 'visual', 'estetika', 'budaya', 'arsitektur'],
-            'science': ['fisika', 'kimia', 'biologi', 'alam', 'eksperimen', 'lab', 'medis', 'dokter', 'farmasi', 'lingkungan', 'kesehatan', 'reaksi', 'atom', 'gizi']
+            'math': ['matematika', 'kalkulus', 'statistika', 'algoritma', 'komputasi', 'logika', 'numerik', 'kuantitatif', 'presisi', 'ukur', 'struktur', 'pola', 'coding', 'program'],
+            'verbal': ['bahasa', 'sastra', 'komunikasi', 'jurnalistik', 'naskah', 'tutur', 'linguistik', 'terjemah', 'pidato', 'negosiasi', 'diplomasi', 'baca', 'tulis', 'redaksi'],
+            'social': ['sosial', 'masyarakat', 'hukum', 'politik', 'psikologi', 'manajemen', 'ekonomi', 'bisnis', 'kultur', 'budaya', 'interaksi', 'publik', 'kebijakan', 'tim', 'kepemimpinan'],
+            'art': ['seni', 'desain', 'estetika', 'kreatif', 'visual', 'musik', 'film', 'tari', 'rupa', 'panggung', 'sketsa', 'harmoni', 'arsitektur', 'dekorasi'],
+            'science': ['fisika', 'kimia', 'biologi', 'alam', 'medis', 'klinis', 'laboratorium', 'eksperimen', 'molekul', 'sel', 'anatomi', 'reaksi', 'unsur', 'lingkungan', 'kesehatan', 'farmasi']
         }
 
     def generate_vector(self, text, major_name):
         text = text.lower()
         name = major_name.lower()
-        scores = {'math': 0, 'verbal': 0, 'social': 0, 'art': 0, 'science': 0}
+        
+        # --- 1. BASE STATS (Berdasarkan Nama Jurusan/Rumpun) ---
+        # Ini memastikan jurusan generik pun punya arah yang benar.
+        
+        scores = {'math': 0.1, 'verbal': 0.1, 'social': 0.1, 'art': 0.1, 'science': 0.1}
+        
+        # Rumpun TEKNIK & KOMPUTER (Math + Science/Logic)
+        if any(x in name for x in ['teknik', 'rekayasa', 'insinyur']):
+            scores['math'] = 0.6; scores['science'] = 0.5
+        if any(x in name for x in ['komputer', 'informatika', 'sistem informasi', 'data']):
+            scores['math'] = 0.8; scores['science'] = 0.3; scores['art'] = 0.3 # Coding itu seni logika
+            
+        # Rumpun KESEHATAN (Science + Social)
+        if any(x in name for x in ['kedokteran', 'gizi', 'kesehatan', 'farmasi', 'keperawatan', 'bidan']):
+            scores['science'] = 0.8; scores['social'] = 0.5; scores['math'] = 0.4
+            
+        # Rumpun SAINS MURNI (Science + Math)
+        if any(x in name for x in ['fisika', 'kimia', 'biologi', 'astronomi', 'geofisika', 'statistika', 'matematika']):
+            scores['science'] = 0.7; scores['math'] = 0.7
+            if 'matematika' in name or 'statistika' in name: scores['science'] = 0.3; scores['math'] = 0.9
+            
+        # Rumpun SOSIAL & BISNIS (Social + Verbal + Math)
+        if any(x in name for x in ['ekonomi', 'akuntansi', 'manajemen', 'bisnis']):
+            scores['social'] = 0.6; scores['math'] = 0.6; scores['verbal'] = 0.4
+        if any(x in name for x in ['hukum', 'politik', 'hubungan internasional', 'sosiologi', 'psikologi']):
+            scores['social'] = 0.8; scores['verbal'] = 0.6; scores['math'] = 0.3
+            
+        # Rumpun BAHASA & BUDAYA (Verbal + Social)
+        if any(x in name for x in ['sastra', 'bahasa', 'linguistik', 'sejarah', 'antropologi', 'filsafat']):
+            scores['verbal'] = 0.8; scores['social'] = 0.6; scores['math'] = 0.2
+        if 'komunikasi' in name or 'jurnalistik' in name:
+            scores['verbal'] = 0.9; scores['social'] = 0.7
+            
+        # Rumpun SENI & DESAIN (Art + Verbal)
+        if any(x in name for x in ['seni', 'desain', 'film', 'musik', 'tari', 'teater', 'fotografi']):
+            scores['art'] = 0.9; scores['verbal'] = 0.4; scores['math'] = 0.2
+        if 'arsitektur' in name: # Arsitektur unik: Seni + Teknik
+            scores['art'] = 0.7; scores['math'] = 0.6; scores['science'] = 0.4
+
+        # --- 2. KEYWORD BOOST (Berdasarkan Deskripsi Wikipedia) ---
+        # Menambah nuansa spesifik dari deskripsi
         
         for dim, keys in self.keywords.items():
+            count = 0
             for key in keys:
-                if key in text: scores[dim] += 0.15
-        
-        if 'teknik' in name: scores['math'] += 0.5
-        if 'sistem' in name or 'komputer' in name: scores['math'] += 0.4
-        if 'kimia' in name: 
-            scores['science'] += 0.6; scores['math'] += 0.2
-        if 'sastra' in name or 'bahasa' in name or 'komunikasi' in name: scores['verbal'] += 0.5
-        if 'sosial' in name or 'hukum' in name or 'manajemen' in name or 'akuntansi' in name: scores['social'] += 0.4
-        if 'desain' in name or 'seni' in name or 'arsitektur' in name: scores['art'] += 0.5
-        if 'kedokteran' in name or 'kesehatan' in name or 'biologi' in name or 'farmasi' in name: scores['science'] += 0.5
-        if 'sejarah' in name: scores['verbal'] += 0.4; scores['social'] += 0.3
-            
+                if key in text: 
+                    count += 1
+            # Cap bonus max 0.4 agar tidak merusak base stats
+            bonus = min(count * 0.1, 0.4)
+            scores[dim] += bonus
+
+        # --- 3. NORMALISASI AKHIR ---
         vector = []
         for dim in ['math', 'verbal', 'social', 'art', 'science']:
-            val = min(scores[dim], 1.0); val = max(val, 0.1)
+            val = min(scores[dim], 1.0) 
+            val = max(val, 0.1)         
             vector.append(round(val, 2))
+            
         return vector
 
 class CareerInsightGenerator:
     def generate_insights(self, major_name):
         name = major_name.lower()
-        
-        # Default
         careers = ["Praktisi Profesional", "Konsultan", "Akademisi/Peneliti", "Wirausahawan", "Pegawai Negeri Sipil"]
         develop = ["Soft Skill Komunikasi", "Manajemen Waktu", "Bahasa Asing (Inggris)", "Literasi Digital"]
         
-        if 'informatika' in name or 'komputer' in name or 'sistem' in name:
-            careers = ["Software Engineer", "Data Scientist", "System Analyst", "IT Consultant", "Cyber Security Specialist"]
-            develop = ["Logika Algoritma", "Bahasa Pemrograman (Python/Java)", "Problem Solving", "Portofolio Project"]
-        elif 'dokter' in name or 'kedokteran' in name or 'kesehatan' in name or 'farmasi' in name:
-            careers = ["Dokter/Tenaga Medis", "Peneliti Kesehatan", "Konsultan Medis", "Manajemen Rumah Sakit", "Apoteker"]
-            develop = ["Ketelitian Tinggi", "Empati & Komunikasi Pasien", "Kecermatan Analisis", "Etika Profesi"]
-        elif 'ekonomi' in name or 'manajemen' in name or 'akuntansi' in name or 'bisnis' in name:
-            careers = ["Manajer Bisnis", "Akuntan Publik", "Financial Analyst", "Entrepreneur", "Marketing Specialist"]
-            develop = ["Analisis Data Keuangan", "Kepemimpinan (Leadership)", "Negosiasi", "Penguasaan Microsoft Excel"]
-        elif 'komunikasi' in name or 'hubungan' in name or 'sastra' in name:
-            careers = ["Public Relations", "Content Writer/Creator", "Jurnalis", "Diplomat", "Translator"]
-            develop = ["Public Speaking", "Penulisan Kreatif", "Berpikir Kritis", "Networking/Relasi"]
-        elif 'desain' in name or 'seni' in name or 'arsitektur' in name:
-            careers = ["Graphic Designer", "Art Director", "Arsitek", "UI/UX Designer", "Illustrator"]
-            develop = ["Kreativitas Visual", "Penguasaan Software Desain", "Portofolio Karya", "Design Thinking"]
-        elif 'hukum' in name:
-            careers = ["Pengacara/Advokat", "Hakim/Jaksa", "Konsultan Hukum (In-house)", "Notaris", "HRD/Personalia"]
-            develop = ["Analisis Kasus", "Public Speaking & Debat", "Penulisan Dokumen Legal", "Integritas"]
-        elif 'teknik' in name:
-            careers = ["Project Engineer", "Site Manager", "R&D Specialist", "Process Engineer", "Konsultan Teknik"]
-            develop = ["Matematika Teknik", "Manajemen Proyek", "Analisis Sistem", "Sertifikasi Keahlian"]
-        elif 'psikologi' in name:
-            careers = ["HRD/Recruiter", "Psikolog Klinis", "Konselor Pendidikan", "Peneliti Perilaku", "Trainer Pengembangan Diri"]
-            develop = ["Active Listening", "Empati", "Observasi Perilaku", "Analisis Data Statistik"]
-        elif 'sejarah' in name:
-            careers = ["Sejarawan", "Peneliti Budaya", "Kurator Museum", "Penulis/Jurnalis", "Pemandu Wisata Sejarah"]
-            develop = ["Kemampuan Riset", "Berpikir Kritis", "Penulisan Naratif", "Analisis Dokumen"]
-
+        # Logic Mapping General
+        if 'teknik' in name or 'rekayasa' in name:
+            careers = ["Engineer", "Project Manager", "Konsultan Teknik", "R&D Specialist", "Manufacture Supervisor"]
+            develop = ["Sertifikasi Insinyur", "Manajemen Proyek", "Software CAD/Simulasi", "K3 (Keselamatan Kerja)"]
+        elif 'komputer' in name or 'informatika' in name or 'sistem' in name:
+            careers = ["Software Developer", "Data Analyst", "Cyber Security", "IT Consultant", "System Administrator"]
+            develop = ["Algoritma & Struktur Data", "Framework Terbaru", "Portofolio GitHub", "Bahasa Inggris Teknis"]
+        elif 'ekonomi' in name or 'bisnis' in name or 'akuntansi' in name:
+            careers = ["Akuntan", "Financial Planner", "Business Analyst", "Marketing Manager", "Auditor"]
+            develop = ["Sertifikasi Keuangan (CFA/CPA)", "Analisis Data", "Kepemimpinan", "Negosiasi"]
+        elif 'kedokteran' in name or 'kesehatan' in name:
+            careers = ["Tenaga Medis", "Manajemen Rumah Sakit", "Peneliti Kesehatan", "Konsultan Kesehatan", "Dosen"]
+            develop = ["Empati Pasien", "Ketahanan Mental", "Update Jurnal Medis", "Komunikasi Efektif"]
+        elif 'seni' in name or 'desain' in name:
+            careers = ["Desainer Grafis/Produk", "Art Director", "Seniman", "Kurator", "Freelance Creative"]
+            develop = ["Portofolio Karya", "Software Desain (Adobe/3D)", "Personal Branding", "Networking Kreatif"]
+        elif 'hukum' in name or 'sosial' in name or 'politik' in name:
+            careers = ["Lawyer/Advokat", "Legal Officer", "Analis Kebijakan", "HRD", "Diplomat"]
+            develop = ["Legal Drafting", "Public Speaking", "Berpikir Kritis", "Analisis Kasus"]
+            
         return careers, develop
 
-# ==================== 3. AUTONOMOUS KNOWLEDGE BASE (FIXED MISSING METHOD) ====================
+# ==================== 3. AUTONOMOUS KNOWLEDGE BASE ====================
 
 class AutonomousKnowledgeBase:
     _instance = None
@@ -144,13 +169,14 @@ class AutonomousKnowledgeBase:
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         self.vector_gen = VectorGenerator()
         
-        # Seed Data
+        # SEED DATA (Daftar Awal yang beragam)
         initial_majors = [
             'Teknik Informatika', 'Sistem Informasi', 'Kedokteran', 'Psikologi', 
             'Manajemen', 'Akuntansi', 'Ilmu Komunikasi', 'Desain Komunikasi Visual',
             'Sastra Inggris', 'Teknik Sipil', 'Hukum', 'Farmasi', 'Arsitektur',
             'Ilmu Sejarah', 'Hubungan Internasional', 'Sastra Indonesia',
-            'Teknik Kimia', 'Teknik Industri', 'Teknik Mesin', 'Statistika'
+            'Teknik Kimia', 'Teknik Industri', 'Teknik Mesin', 'Statistika',
+            'Agroteknologi', 'Administrasi Bisnis', 'Fisika Murni', 'Biologi'
         ]
         
         self.data = self._load_db()
@@ -173,6 +199,7 @@ class AutonomousKnowledgeBase:
             query = major_name.replace(' ', '_')
             url = f"https://id.wikipedia.org/api/rest_v1/page/summary/{query}"
             response = requests.get(url, headers=self.headers, timeout=5)
+            
             description = ""
             source = "Wikipedia"
             url_link = "#"
@@ -187,26 +214,25 @@ class AutonomousKnowledgeBase:
                 source = "Internal Fallback"
 
             generated_vector = self.vector_gen.generate_vector(description, major_name)
+            
             return {'description': description, 'vector': generated_vector, 'source': source, 'url': url_link, 'timestamp': datetime.now().isoformat()}
         except Exception:
             return {'description': "Data tidak tersedia.", 'vector': [0.2]*5, 'source': 'Error', 'url': '#', 'timestamp': datetime.now().isoformat()}
 
-    # [INI METODE YANG HILANG SEBELUMNYA - SUDAH DIKEMBALIKAN]
     def discover_new_majors(self):
-        """Robot menjelajahi kategori Wikipedia untuk mencari jurusan baru"""
         discovery_url = "https://id.wikipedia.org/wiki/Kategori:Disiplin_akademik"
         new_found = []
+        blacklist = ["antar disiplin", "studi", "ilmu", "daftar", "kategori", "disiplin", "metode", "teori"]
+        
         try:
             response = requests.get(discovery_url, headers=self.headers, timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.content, 'html.parser')
-                # Selector untuk mengambil link artikel
                 links = soup.select("#mw-pages a")
-                
                 for link in links:
                     major_name = link.text
-                    # Filter: tidak duplikat dan panjang nama wajar
-                    if major_name not in self.target_majors and len(major_name) < 35:
+                    major_lower = major_name.lower()
+                    if (not any(bad in major_lower for bad in blacklist)) and (major_name not in self.target_majors) and (len(major_name) < 40):
                         self.target_majors.append(major_name)
                         new_found.append(major_name)
             return new_found
@@ -259,6 +285,8 @@ class AdvancedCareerAI:
         ekonomi = academics.get('Ekonomi', 0); sosiologi = academics.get('Sosiologi', 0); geografi = academics.get('Geografi', 0)
         sejarah_minat = academics.get('Sejarah Peminatan', 0); sastra_indo = academics.get('Sastra Indonesia', 0); sastra_inggris = academics.get('Sastra Inggris', 0)
         
+        # Logika User Vector juga diperkuat
+        # Math = Math + Fisika + Ekonomi (logika angka)
         score_logika = (math_wajib * 0.3) + (math_minat * 0.3) + (fisika * 0.2) + (ekonomi * 0.2)
         vec_math = self._normalize_score(score_logika)
         
@@ -271,7 +299,8 @@ class AdvancedCareerAI:
         
         vec_art = (self._normalize_score(interests.get('Kreativitas dan Seni', 0), 5) * 0.6) + (self._normalize_score(competencies.get('Kreativitas', 0), 5) * 0.4)
         
-        score_sains = (fisika + kimia + biologi + (geografi * 0.3)) / 3.3
+        # Sains = Fisika + Kimia + Biologi
+        score_sains = (fisika + kimia + biologi) / 3.0
         vec_science = self._normalize_score(score_sains)
         
         return np.array([vec_math, vec_verbal, vec_social, vec_art, vec_science])
@@ -282,9 +311,9 @@ class AdvancedCareerAI:
         for i in range(5):
             if user_vec[i] > 0.55 and major_vec[i] > 0.55: strong_match.append(dims[i])
         
-        explanation = f"AI merekomendasikan {major_name} karena profil Anda menunjukkan kekuatan yang signifikan pada aspek {', '.join(strong_match)}."
-        if not strong_match: explanation = f"AI merekomendasikan {major_name} karena profil Anda memiliki keseimbangan yang sesuai dengan karakteristik jurusan ini secara umum."
-        if has_bonus: explanation += " Ditambah lagi, esai reflektif Anda mengandung kata kunci spesifik yang sangat relevan dengan bidang ini."
+        explanation = f"AI merekomendasikan {major_name} karena profil Anda cocok pada aspek {', '.join(strong_match)}."
+        if not strong_match: explanation = f"AI merekomendasikan {major_name} karena profil Anda memiliki keseimbangan yang sesuai dengan karakteristik jurusan ini."
+        if has_bonus: explanation += " Ditambah lagi, esai reflektif Anda mengandung kata kunci spesifik yang sangat relevan."
         return explanation
 
     def generate_recommendations(self, user_data):
@@ -306,20 +335,19 @@ class AdvancedCareerAI:
             results.append({
                 'major': major, 'score': round(min(match_score, 99.9), 1),
                 'vector': vector, 'user_vector': user_vector[0].tolist(), 
-                'explanation': explanation,
-                'careers': careers, 'develop': develop
+                'explanation': explanation, 'careers': careers, 'develop': develop
             })
         return sorted(results, key=lambda x: x['score'], reverse=True)[:3]
 
     def _calculate_essay_bonus(self, essay_analysis, major):
         bonus = 0
         text = " ".join(essay_analysis.get('overall', {}).get('key_phrases', [])).lower()
-        if 'teknik' in major.lower() and ('teknologi' in text or 'komputer' in text): bonus += 3
-        if 'sosial' in major.lower() and ('bantu' in text or 'masyarakat' in text): bonus += 3
-        if 'seni' in major.lower() and ('gambar' in text or 'desain' in text): bonus += 3
-        if 'kesehatan' in major.lower() and ('dokter' in text): bonus += 3
-        if 'sejarah' in major.lower() and ('masa lalu' in text or 'budaya' in text): bonus += 3
-        if 'kimia' in major.lower() and ('atom' in text or 'reaksi' in text or 'lab' in text): bonus += 3
+        name = major.lower()
+        if 'teknik' in name and ('teknologi' in text or 'mesin' in text): bonus += 3
+        if 'kimia' in name and ('kimia' in text or 'reaksi' in text): bonus += 3
+        if 'sosial' in name and ('masyarakat' in text): bonus += 3
+        if 'seni' in name and ('gambar' in text): bonus += 3
+        if 'dokter' in name and ('kesehatan' in text): bonus += 3
         return bonus
 
 class EssayAnalyzer:
@@ -330,10 +358,8 @@ class EssayAnalyzer:
                 blob = TextBlob(full_text)
                 polarity = blob.sentiment.polarity
                 keywords = list(set(blob.noun_phrases))[:8]
-            except:
-                polarity = 0; keywords = self._manual_keyword_extraction(full_text)
-        else:
-            polarity = 0; keywords = self._manual_keyword_extraction(full_text)
+            except: polarity = 0; keywords = self._manual_keyword_extraction(full_text)
+        else: polarity = 0; keywords = self._manual_keyword_extraction(full_text)
         sent_label = "POSITIF" if polarity > 0.1 else "NEGATIF" if polarity < -0.1 else "NETRAL"
         return {'overall': {'sentiment': {'score': polarity, 'label': sent_label}, 'key_phrases': keywords, 'word_count': len(full_text.split())}}
     
@@ -343,7 +369,7 @@ class EssayAnalyzer:
         unique_words = list(set([w for w in words if w not in stopwords and len(w) > 4]))
         return unique_words[:8]
 
-# ==================== 5. PDF REPORT (FINAL) ====================
+# ==================== 5. PDF REPORT ====================
 
 class PDFReport(FPDF):
     def header(self):
