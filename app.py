@@ -43,9 +43,8 @@ def setup_nltk_failsafe():
 
 setup_nltk_failsafe()
 
-# [UPDATED] Menggunakan Emoji 🎓 sebagai Ikon Aplikasi
 st.set_page_config(
-    page_title="AI Career Guidance", 
+    page_title="AI Career Guidance (Final)", 
     page_icon="🎓", 
     layout="wide", 
     initial_sidebar_state="expanded"
@@ -129,6 +128,7 @@ class VectorGenerator:
             scores['math'] = 0.6
             scores['science'] = 0.4
 
+        # Keyword counting
         for dim, keys in self.keywords.items():
             count = 0
             for key in keys:
@@ -183,13 +183,16 @@ class AutonomousKnowledgeBase:
         self.db_file = 'knowledge_base_v2.json'
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         self.vector_gen = VectorGenerator()
+        
+        # Seed Jurusan
         initial_majors = [
+            'Matematika', 'Statistika', 'Aktuaria',
             'Teknik Informatika', 'Sistem Informasi', 'Kedokteran', 'Psikologi', 
             'Manajemen', 'Akuntansi', 'Ilmu Komunikasi', 'Desain Komunikasi Visual',
             'Sastra Inggris', 'Teknik Sipil', 'Hukum', 'Farmasi', 'Arsitektur',
             'Ilmu Sejarah', 'Hubungan Internasional', 'Sastra Indonesia',
-            'Teknik Kimia', 'Teknik Industri', 'Teknik Mesin', 'Statistika',
-            'Agroteknologi', 'Administrasi Bisnis', 'Fisika Murni', 'Biologi'
+            'Teknik Kimia', 'Teknik Industri', 'Teknik Mesin',
+            'Agroteknologi', 'Administrasi Bisnis', 'Fisika', 'Biologi'
         ]
         self.data = self._load_db()
         self.target_majors = list(set(initial_majors + list(self.data.keys())))
@@ -256,7 +259,13 @@ class AutonomousKnowledgeBase:
             "https://id.wikipedia.org/wiki/Kategori:Ilmu_sosial"
         ]
         new_found = []
-        blacklist = ["daftar", "kategori", "metode", "teori", "sejarah", "tokoh", "buku", "portal", "halaman", "rintisan"]
+        
+        # [FIXED] Blacklist diperketat untuk menghindari halusinasi (ideologi/konsep)
+        blacklist = [
+            "daftar", "kategori", "metode", "teori", "sejarah", "tokoh", 
+            "buku", "portal", "halaman", "rintisan", "wikipedia",
+            "isme", "gerakan", "ideologi", "konsep", "filsafat", "cabang"
+        ]
         
         for discovery_url in urls:
             try:
@@ -269,6 +278,7 @@ class AutonomousKnowledgeBase:
                         major_name = raw_name.replace("Kategori:", "").strip()
                         major_lower = major_name.lower()
                         
+                        # Filter Cerdas
                         if (not any(bad in major_lower for bad in blacklist)) and \
                            (major_name not in self.target_majors) and \
                            (len(major_name) < 50) and (len(major_name) > 3):
@@ -315,7 +325,6 @@ class AdvancedCareerAI:
         interests = user_data.get('interests', {})
         competencies = user_data.get('competencies', {})
         
-        # Parsing nilai dengan aman
         math_wajib = academics.get('Matematika (Wajib)', 0)
         indo_wajib = academics.get('Bahasa Indonesia', 0)
         inggris_wajib = academics.get('Bahasa Inggris', 0)
@@ -332,7 +341,7 @@ class AdvancedCareerAI:
         sastra_inggris = academics.get('Sastra Inggris', 0)
         
         # Kalkulasi Vector
-        score_logika = (math_wajib * 0.3) + (math_minat * 0.3) + (fisika * 0.2) + (ekonomi * 0.2)
+        score_logika = (math_wajib * 0.3) + (math_minat * 0.4) + (fisika * 0.1) + (ekonomi * 0.2)
         vec_math = self._normalize_score(score_logika)
         
         avg_bahasa = (indo_wajib + inggris_wajib + sastra_indo + sastra_inggris + (sejarah_minat * 1.5)) / 5.5
@@ -405,6 +414,8 @@ class AdvancedCareerAI:
         is_negative_tone = any(w in full_essay for w in negative_words)
         
         if is_positive_tone and not is_negative_tone:
+            if 'matematika' in name and ('logika' in text or 'angka' in text or 'hitung' in text):
+                bonus += 7
             if ('sejarah' in name or 'arkeologi' in name) and ('sejarah' in text or 'masa lalu' in text or 'kuno' in text):
                 bonus += 7
             if 'teknik' in name and ('teknologi' in text or 'mesin' in text):
@@ -417,8 +428,6 @@ class AdvancedCareerAI:
                 bonus += 3
             if 'dokter' in name and ('kesehatan' in text):
                 bonus += 3
-            if 'matematika' in name and ('logika' in text or 'angka' in text):
-                bonus += 7
         return bonus
 
 class EssayAnalyzer:
@@ -692,7 +701,7 @@ def main():
         show_admin = st.checkbox("Kelola Memori (Admin)")
         if show_admin:
             password = st.text_input("Masukkan Password Admin:", type="password")
-            if password == "CobaAplikasiLagiYa":
+            if password == "admin123":
                 st.success("Akses Diterima ✅")
                 st.write("**💾 Database Control**")
                 if os.path.exists(kb.db_file):
