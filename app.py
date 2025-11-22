@@ -684,7 +684,7 @@ def main():
             password = st.text_input("Masukkan Password Admin:", type="password")
             
             # Ganti 'admin123' dengan password yang Anda inginkan
-            if password == "admin123": 
+            if password == "CobaAplikasiLagiYa123": 
                 st.success("Akses Diterima ✅")
                 
                 st.write("---")
