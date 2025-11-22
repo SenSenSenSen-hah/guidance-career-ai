@@ -44,8 +44,8 @@ def setup_nltk_failsafe():
 setup_nltk_failsafe()
 
 st.set_page_config(
-    page_title="AI Career Guidance (Math Fixed)", 
-    page_icon="📐", 
+    page_title="AI Career Guidance", 
+    page_icon="🎓", 
     layout="wide", 
     initial_sidebar_state="expanded"
 )
@@ -78,72 +78,91 @@ class VectorGenerator:
         name = major_name.lower()
         scores = {'math': 0.1, 'verbal': 0.1, 'social': 0.1, 'art': 0.1, 'science': 0.1}
         
-        # --- LOGIKA PEMISAH (DISCRIMINATOR LOGIC) ---
+        # --- ISOLASI VEKTOR (STRICT LOGIC) ---
         
-        # 1. KELOMPOK MATEMATIKA MURNI (Math Dominan Mutlak)
+        # 1. Matematika Murni
         if any(x in name for x in ['matematika', 'statistika', 'aktuaria']):
-            scores['math'] = 0.99      # Sangat tinggi
-            scores['science'] = 0.4    
-            scores['social'] = 0.1     
+            scores['math'] = 1.0
+            scores['science'] = 0.2
+            scores['social'] = 0.1
             scores['art'] = 0.1
             
-        # 2. KELOMPOK TEKNIK
+        # 2. Teknik
         elif any(x in name for x in ['teknik', 'rekayasa', 'insinyur']):
             scores['math'] = 0.7
-            scores['science'] = 0.6
-            if 'kimia' in name: scores['science'] = 0.9; scores['math'] = 0.65
-            if 'informatika' in name or 'komputer' in name: scores['math'] = 0.9; scores['science'] = 0.3
+            scores['science'] = 0.7
+            if 'kimia' in name:
+                scores['science'] = 0.95
+                scores['math'] = 0.65
+            if 'informatika' in name or 'komputer' in name:
+                scores['math'] = 0.9
+                scores['science'] = 0.2
+                scores['art'] = 0.4
 
-        # 3. KELOMPOK PERILAKU (Fix agar tidak dikira Math)
-        elif any(x in name for x in ['perilaku', 'psikologi', 'bimbingan', 'konseling', 'sosial', 'sosiologi']):
+        # 3. Perilaku/Psikologi
+        elif any(x in name for x in ['perilaku', 'psikologi', 'bimbingan', 'konseling', 'sosial']):
             scores['social'] = 0.95
-            scores['verbal'] = 0.6
-            scores['math'] = 0.2       # CAP Math rendah
-            
-        # 4. SAINS ALAM
-        elif any(x in name for x in ['fisika', 'kimia', 'biologi', 'astronomi']):
-            scores['science'] = 0.9; scores['math'] = 0.6
-            
-        # 5. EKONOMI
-        elif any(x in name for x in ['ekonomi', 'akuntansi', 'manajemen', 'bisnis']):
-            scores['social'] = 0.6; scores['math'] = 0.6; scores['verbal'] = 0.4
+            scores['verbal'] = 0.7
+            scores['math'] = 0.1
+            scores['science'] = 0.3
 
-        # 6. BAHASA/HUMANIORA
-        elif any(x in name for x in ['sastra', 'bahasa', 'sejarah', 'filsafat', 'antropologi']):
-            scores['verbal'] = 0.9; scores['social'] = 0.7; scores['math'] = 0.1
+        # 4. Sains Alam
+        elif any(x in name for x in ['fisika', 'kimia', 'biologi', 'astronomi']):
+            scores['science'] = 0.95
+            scores['math'] = 0.6
+            scores['social'] = 0.1
+
+        # 5. Ekonomi
+        elif any(x in name for x in ['ekonomi', 'akuntansi', 'manajemen']):
+            scores['social'] = 0.7
+            scores['math'] = 0.6
+            scores['verbal'] = 0.4
+
+        # 6. Humaniora
+        elif any(x in name for x in ['sastra', 'sejarah', 'filsafat', 'antropologi']):
+            scores['verbal'] = 0.9
+            scores['social'] = 0.8
+            scores['math'] = 0.1
 
         # Keyword Boosting
         for dim, keys in self.keywords.items():
             count = 0
             for key in keys:
-                if key in text: count += 1
-            # Jangan tambah math jika jurusan sosial
-            if dim == 'math' and scores['social'] > 0.8: continue
+                if key in text:
+                    count += 1
+            
+            if dim == 'math' and scores['social'] > 0.8:
+                continue
+            
             scores[dim] += min(count * 0.1, 0.3)
 
         vector = []
         for dim in ['math', 'verbal', 'social', 'art', 'science']:
-            val = min(scores[dim], 1.0); val = max(val, 0.1)
+            val = min(scores[dim], 1.0)
+            val = max(val, 0.1)
             vector.append(round(val, 2))
         return vector
 
 class CareerInsightGenerator:
     def generate_insights(self, major_name):
         name = major_name.lower()
-        careers = ["Praktisi Profesional", "Konsultan", "Akademisi/Peneliti", "Wirausahawan", "Pegawai Negeri Sipil"]
-        develop = ["Soft Skill Komunikasi", "Manajemen Waktu", "Bahasa Asing (Inggris)", "Literasi Digital"]
+        careers = ["Praktisi Profesional", "Konsultan", "Akademisi", "Wirausahawan"]
+        develop = ["Komunikasi", "Manajemen Waktu", "Bahasa Inggris"]
         
         if 'matematika' in name or 'statistika' in name:
-            careers = ["Data Scientist", "Aktuaris", "Kriptografer", "Quantitative Analyst", "Dosen Matematika"]
-            develop = ["Pemrograman (R/Python)", "Analisis Statistik Lanjut", "Pemodelan Matematika"]
+            careers = ["Data Scientist", "Aktuaris", "Kriptografer", "Quantitative Analyst", "Dosen"]
+            develop = ["Pemrograman (Python/R)", "Statistik Lanjut", "Problem Solving Abstrak"]
         elif 'teknik' in name:
-            careers = ["Engineer", "Project Manager", "Site Supervisor", "R&D Specialist", "Konsultan Teknik"]
+            careers = ["Engineer", "Project Manager", "Site Supervisor", "Konsultan Teknik"]
             develop = ["Sertifikasi Insinyur", "Manajemen Proyek", "Software CAD/Simulasi"]
         elif 'komputer' in name or 'informatika' in name:
-            careers = ["Software Developer", "Data Analyst", "Cyber Security", "IT Consultant"]
+            careers = ["Software Dev", "Cyber Security", "System Analyst", "AI Engineer"]
             develop = ["Algoritma", "Portofolio GitHub", "Framework Terbaru"]
+        elif 'psikologi' in name or 'perilaku' in name:
+            careers = ["HRD", "Psikolog", "Konselor", "UX Researcher"]
+            develop = ["Empati", "Metode Penelitian", "Asesmen Psikologi"]
         elif 'sejarah' in name or 'sastra' in name:
-            careers = ["Peneliti", "Penulis", "Kurator", "Jurnalis", "Arsiparis"]
+            careers = ["Peneliti", "Penulis", "Kurator", "Jurnalis"]
             develop = ["Riset Arsip", "Penulisan Kreatif", "Bahasa Asing"]
             
         return careers, develop
@@ -159,9 +178,8 @@ class AutonomousKnowledgeBase:
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         self.vector_gen = VectorGenerator()
         
-        # [FIX] Memastikan Matematika Murni ada di sini
         initial_majors = [
-            'Matematika', 'Matematika Murni', 'Statistika', 'Aktuaria',
+            'Matematika', 'Statistika', 'Aktuaria',
             'Teknik Informatika', 'Sistem Informasi', 'Kedokteran', 'Psikologi', 
             'Manajemen', 'Akuntansi', 'Ilmu Komunikasi', 'Desain Komunikasi Visual',
             'Sastra Inggris', 'Teknik Sipil', 'Hukum', 'Farmasi', 'Arsitektur',
@@ -232,14 +250,12 @@ class AutonomousKnowledgeBase:
             "https://id.wikipedia.org/wiki/Kategori:Cabang_psikologi"
         ]
         new_found = []
-        
-        # [FIX] Blacklist diperketat untuk membuang judul kategori sampah
         blacklist = [
             "daftar", "kategori", "metode", "teori", "sejarah", "tokoh", 
             "buku", "portal", "halaman", "rintisan", "isme", "gerakan", 
             "ideologi", "konsep", "filsafat", "cabang", "terapan", 
             "perilaku", "eksperimental", "klinis", "kepribadian",
-            "menurut", "bidang", "cendekiawan", "akademikus", "subyek", "berdasarkan"
+            "menurut", "bidang", "cendekiawan", "akademikus", "subyek"
         ]
         
         for discovery_url in urls:
@@ -253,7 +269,6 @@ class AutonomousKnowledgeBase:
                         major_name = raw_name.replace("Kategori:", "").strip()
                         major_lower = major_name.lower()
                         
-                        # Filter Cerdas
                         if (not any(bad in major_lower for bad in blacklist)) and \
                            (major_name not in self.target_majors) and \
                            (len(major_name) < 50) and (len(major_name) > 3):
@@ -292,7 +307,8 @@ class AdvancedCareerAI:
         self.insight_gen = CareerInsightGenerator()
 
     def _normalize_score(self, val, max_val=100):
-        if val is None: return 0
+        if val is None:
+            return 0
         return min(max(val / max_val, 0), 1)
 
     def construct_user_vector(self, user_data):
@@ -300,18 +316,29 @@ class AdvancedCareerAI:
         interests = user_data.get('interests', {})
         competencies = user_data.get('competencies', {})
         
-        math_wajib = academics.get('Matematika (Wajib)', 0); indo_wajib = academics.get('Bahasa Indonesia', 0); inggris_wajib = academics.get('Bahasa Inggris', 0)
-        math_minat = academics.get('Matematika (Peminatan)', math_wajib)
-        fisika = academics.get('Fisika', 0); kimia = academics.get('Kimia', 0); biologi = academics.get('Biologi', 0)
-        ekonomi = academics.get('Ekonomi', 0); sosiologi = academics.get('Sosiologi', 0); geografi = academics.get('Geografi', 0)
-        sejarah_minat = academics.get('Sejarah Peminatan', 0); sastra_indo = academics.get('Sastra Indonesia', 0); sastra_inggris = academics.get('Sastra Inggris', 0)
+        # Parsing Nilai
+        math_wajib = academics.get('Matematika (Wajib)', 0)
+        indo_wajib = academics.get('Bahasa Indonesia', 0)
+        inggris_wajib = academics.get('Bahasa Inggris', 0)
         
-        # LOGIKA MATEMATIKA USER DIPERKUAT
+        math_minat = academics.get('Matematika (Peminatan)', math_wajib)
+        fisika = academics.get('Fisika', 0)
+        kimia = academics.get('Kimia', 0)
+        biologi = academics.get('Biologi', 0)
+        ekonomi = academics.get('Ekonomi', 0)
+        sosiologi = academics.get('Sosiologi', 0)
+        geografi = academics.get('Geografi', 0)
+        sejarah_minat = academics.get('Sejarah Peminatan', 0)
+        sastra_indo = academics.get('Sastra Indonesia', 0)
+        sastra_inggris = academics.get('Sastra Inggris', 0)
+        
+        # Kalkulasi Vector User
         score_logika = (math_wajib * 0.3) + (math_minat * 0.5) + (fisika * 0.1) + (ekonomi * 0.1)
         vec_math = self._normalize_score(score_logika)
         
         avg_bahasa = (indo_wajib + inggris_wajib + sastra_indo + sastra_inggris + (sejarah_minat * 1.5)) / 5.5
-        if avg_bahasa == 0: avg_bahasa = (indo_wajib + inggris_wajib) / 2.0
+        if avg_bahasa == 0:
+            avg_bahasa = (indo_wajib + inggris_wajib) / 2.0
         vec_verbal = (self._normalize_score(avg_bahasa) * 0.6) + (self._normalize_score(competencies.get('Komunikasi', 0), 5) * 0.4)
         
         score_sosial_akad = max(sosiologi, geografi, (sejarah_minat * 1.2), (indo_wajib * 0.6))
@@ -351,12 +378,21 @@ class AdvancedCareerAI:
             if user_data.get('essay_analysis'):
                 bonus = self._calculate_essay_bonus(user_data['essay_analysis'], major)
                 match_score += bonus
-                if bonus > 0: has_bonus = True
+                if bonus > 0:
+                    has_bonus = True
             
             explanation = self._generate_explanation(user_vector[0], vector, major, has_bonus)
             careers, develop = self.insight_gen.generate_insights(major)
 
-            results.append({'major': major, 'score': round(min(match_score, 99.9), 1), 'vector': vector, 'user_vector': user_vector[0].tolist(), 'explanation': explanation, 'careers': careers, 'develop': develop})
+            results.append({
+                'major': major,
+                'score': round(min(match_score, 99.9), 1),
+                'vector': vector,
+                'user_vector': user_vector[0].tolist(),
+                'explanation': explanation,
+                'careers': careers,
+                'develop': develop
+            })
         return sorted(results, key=lambda x: x['score'], reverse=True)[:5]
 
     def _calculate_essay_bonus(self, essay_analysis, major):
@@ -397,9 +433,12 @@ class EssayAnalyzer:
         pos_count = sum(1 for w in positive_words if w in full_text.lower())
         neg_count = sum(1 for w in negative_words if w in full_text.lower())
         
-        if pos_count > neg_count: sent_label = "POSITIF (Antusias)"
-        elif neg_count > pos_count: sent_label = "NEGATIF (Kurang Minat)"
-        else: sent_label = "NETRAL"
+        if pos_count > neg_count:
+            sent_label = "POSITIF (Antusias)"
+        elif neg_count > pos_count:
+            sent_label = "NEGATIF (Kurang Minat)"
+        else:
+            sent_label = "NETRAL"
         
         if NLTK_READY:
             try:
@@ -426,7 +465,7 @@ class EssayAnalyzer:
         stopwords = ['yang', 'dan', 'di', 'ke', 'dari', 'ini', 'itu', 'adalah', 'saya', 'ingin', 'suka', 'sangat', 'mau', 'akan']
         return list(set([w for w in words if w not in stopwords and len(w) > 4]))
 
-# ==================== 5. PDF REPORT (MULTI RECOMMENDATION) ====================
+# ==================== 5. PDF REPORT ====================
 
 class PDFReport(FPDF):
     def header(self):
