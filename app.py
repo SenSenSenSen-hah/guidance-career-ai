@@ -44,8 +44,8 @@ def setup_nltk_failsafe():
 setup_nltk_failsafe()
 
 st.set_page_config(
-    page_title="AI Career Guidance (Final Fix)", 
-    page_icon="🎯", 
+    page_title="AI Career Guidance (Secure)", 
+    page_icon="🔐", 
     layout="wide", 
     initial_sidebar_state="expanded"
 )
@@ -78,7 +78,7 @@ class VectorGenerator:
         name = major_name.lower()
         scores = {'math': 0.1, 'verbal': 0.1, 'social': 0.1, 'art': 0.1, 'science': 0.1}
         
-        # Base Stats
+        # Base Stats Logic
         if 'teknik' in name or 'rekayasa' in name:
             scores['math'] = 0.6
             scores['science'] = 0.5
@@ -128,7 +128,6 @@ class VectorGenerator:
             scores['math'] = 0.6
             scores['science'] = 0.4
 
-        # Keyword counting
         for dim, keys in self.keywords.items():
             count = 0
             for key in keys:
@@ -653,36 +652,69 @@ def render_results_dashboard():
 
 def main():
     st.markdown('<h1 class="main-header">🇮🇩 Autonomous Career AI</h1>', unsafe_allow_html=True)
+    
+    # --- SIDEBAR: KONTROL ROBOT ---
     with st.sidebar:
         st.header("🤖 Pusat Kontrol AI")
         kb = get_knowledge_base()
-        st.metric("Kapasitas Otak (Jurusan)", f"{len(kb.target_majors)} Item")
         
+        # Statistik (Aman dilihat siapa saja)
+        st.metric("Kapasitas Otak", f"{len(kb.target_majors)} Jurusan")
+        
+        # Fitur Eksplorasi (Boleh diakses publik agar robot makin pintar)
         st.subheader("📡 Discovery Agent")
         if st.button("🕵️ Cari Jurusan Baru"):
             with st.spinner("Robot sedang menjelajahi Wikipedia..."):
                 new = kb.discover_new_majors()
-                if new:
+                if new: 
                     st.success(f"Menemukan {len(new)} jurusan baru!")
                     kb.get_all_vectors()
-                else:
+                else: 
                     st.info("Belum ada jurusan baru.")
+        
         st.markdown("---")
-        st.subheader("💾 Manajemen Memori")
-        if os.path.exists(kb.db_file):
-            with open(kb.db_file, "rb") as f:
-                st.download_button("📥 Backup Otak (JSON)", f, "backup_knowledge_base.json")
-        uploaded = st.file_uploader("📤 Restore Memori", type=["json"])
-        if uploaded:
-            try:
-                data = json.load(uploaded)
-                with open(kb.db_file, "w") as f:
-                    json.dump(data, f, indent=4)
-                st.success("✅ Memori dipulihkan!")
-                time.sleep(1)
-                st.rerun()
-            except:
-                st.error("File rusak.")
+        
+        # --- [FITUR ADMIN: DILINDUNGI PASSWORD] ---
+        st.subheader("🔒 Area Admin")
+        
+        # Checkbox untuk membuka menu admin
+        show_admin = st.checkbox("Kelola Memori (Admin)")
+        
+        if show_admin:
+            password = st.text_input("Masukkan Password Admin:", type="password")
+            
+            # Ganti 'admin123' dengan password yang Anda inginkan
+            if password == "admin123": 
+                st.success("Akses Diterima ✅")
+                
+                st.write("---")
+                st.write("**💾 Database Control**")
+                
+                # 1. Download (Backup)
+                if os.path.exists(kb.db_file):
+                    with open(kb.db_file, "rb") as f:
+                        st.download_button(
+                            label="📥 Download Backup JSON",
+                            data=f,
+                            file_name="backup_knowledge_base.json",
+                            mime="application/json"
+                        )
+                
+                # 2. Upload (Restore) - HANYA ADMIN YANG BISA
+                uploaded = st.file_uploader("📤 Upload Backup JSON", type=["json"])
+                if uploaded:
+                    try:
+                        data = json.load(uploaded)
+                        with open(kb.db_file, "w") as f:
+                            json.dump(data, f, indent=4)
+                        st.success("✅ Memori berhasil dipulihkan!")
+                        time.sleep(1)
+                        st.rerun()
+                    except:
+                        st.error("File JSON rusak/tidak valid.")
+            
+            elif password:
+                st.error("Password Salah ❌")
 
     if 'user_data' not in st.session_state:
         st.session_state.user_data = {}
