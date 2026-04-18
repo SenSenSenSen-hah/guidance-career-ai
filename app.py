@@ -370,12 +370,44 @@ def render_results_dashboard():
 
 def main():
     st.markdown('<h1 class="main-header">Autonomous Career AI</h1>', unsafe_allow_html=True)
+    
+    # --- PERUBAHAN: LOGIKA PENGUNCIAN PANEL ADMIN ---
     with st.sidebar:
         st.header("Admin Panel")
-        if st.button("Pindai Wikipedia"):
-            with st.spinner("Scraping..."):
-                res = get_knowledge_base().discover_new_majors()
-                st.success(f"Ditemukan {len(res)} data.") if res else st.info("Tidak ada data baru.")
+        
+        # 1. Cek apakah status admin sudah login di sesi ini
+        if 'admin_logged_in' not in st.session_state:
+            st.session_state.admin_logged_in = False
+            
+        # 2. Jika belum login, tampilkan form input password
+        if not st.session_state.admin_logged_in:
+            st.info("Panel terkunci. Masukkan sandi untuk mengakses fitur scraper.")
+            admin_pass = st.text_input("Sandi Admin:", type="password")
+            if st.button("Buka Kunci"):
+                try:
+                    # Mencocokkan dengan password di secrets.toml
+                    if admin_pass == st.secrets["admin_password"]:
+                        st.session_state.admin_logged_in = True
+                        st.rerun() # Muat ulang layar agar menu admin terbuka
+                    else:
+                        st.error("Sandi salah!")
+                except KeyError:
+                    st.error("Peringatan: 'admin_password' belum diatur di secrets.toml")
+                    
+        # 3. Jika sudah login, tampilkan tombol fitur rahasia
+        else:
+            st.success("🔓 Akses Admin Terbuka")
+            if st.button("Pindai Wikipedia"):
+                with st.spinner("Scraping..."):
+                    res = get_knowledge_base().discover_new_majors()
+                    st.success(f"Ditemukan {len(res)} data baru.") if res else st.info("Tidak ada data baru.")
+            
+            # Tombol untuk mengunci kembali
+            st.markdown("---")
+            if st.button("Kunci Kembali (Logout)"):
+                st.session_state.admin_logged_in = False
+                st.rerun()
+    # ------------------------------------------------
         
     if 'user_data' not in st.session_state: st.session_state.user_data = {}; st.session_state.current_step = 0
     st.progress((st.session_state.current_step + 1) / 5)
