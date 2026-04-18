@@ -198,9 +198,9 @@ class SQLiteKnowledgeBase:
             self.process_and_save_new_majors(['Matematika', 'Teknik Informatika', 'Psikologi', 'Manajemen', 'Ilmu Komunikasi'])
 
     def save_major(self, name, desc, radar_vec, semantic_vec):
-        self.conn.execute('INSERT OR REPLACE INTO majors VALUES (?, ?, ?, ?)', (name, json.dumps(radar_vec), json.dumps(semantic_vec.tolist())))
+        self.conn.execute('INSERT OR REPLACE INTO majors VALUES (?, ?, ?, ?)', (name, desc, json.dumps(radar_vec), json.dumps(semantic_vec.tolist())))
         self.conn.commit()
-
+        
     def get_all_majors(self):
         results = {}
         for row in self.conn.execute("SELECT major_name, description, radar_vector, semantic_vector FROM majors").fetchall():
