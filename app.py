@@ -355,7 +355,13 @@ def render_results_dashboard():
             pdf.set_font("Arial", '', 11)
             for c in rec['careers'] + rec['develop']: pdf.cell(0, 6, f"- {c}", ln=1)
 
-        b64 = base64.b64encode(pdf.output(dest='S')).decode()
+        pdf_out = pdf.output(dest='S')
+        
+        # Konversi ke biner (bytes) jika bentuknya masih string
+        if isinstance(pdf_out, str):
+            pdf_out = pdf_out.encode('latin-1', 'replace')
+            
+        b64 = base64.b64encode(pdf_out).decode()
         st.markdown(f'<a href="data:application/octet-stream;base64,{b64}" download="Laporan_Karir_AI.pdf">Klik di sini untuk mengunduh PDF</a>', unsafe_allow_html=True)
 
     if st.button("🔄 Mulai Sesi Baru"): 
