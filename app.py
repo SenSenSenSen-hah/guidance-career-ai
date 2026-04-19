@@ -8,9 +8,7 @@ import aiohttp
 import sqlite3
 import google.generativeai as genai
 import plotly.graph_objects as go
-from datetime import datetime
 from fpdf import FPDF
-from bs4 import BeautifulSoup
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -19,7 +17,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ==============================================================================
 st.set_page_config(page_title="Autonomous Career AI", layout="wide")
 
-# CSS Kustom untuk tampilan profesional
 st.markdown("""
 <style>
     .main-header { font-size: 2.5rem; color: #1f77b4; text-align: center; font-weight: 800; margin-bottom: 20px; }
@@ -34,7 +31,6 @@ st.markdown("""
 
 @st.cache_resource
 def load_nlp_model():
-    # Model ringan untuk mengubah teks esai/deskripsi menjadi angka (vektor)
     return SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 
 nlp_model = load_nlp_model()
@@ -59,8 +55,9 @@ class GeminiCareerAnalyst:
         Instruksi:
         1. Gunakan Bahasa Indonesia yang akademis namun memotivasi.
         2. Hubungkan secara logis antara nilai mata pelajaran spesifik dengan tuntutan jurusan {major_name}.
-        3. Berikan proyeksi karir masa depan.
-        4. Maksimal 3 paragraf. Jangan tampilkan angka skor kecocokan dalam teks.
+        3. Jadikan "Esai Motivasi" sebagai landasan utama penentu minat/bakat.
+        4. Berikan proyeksi karir masa depan.
+        5. Maksimal 3 paragraf. Jangan tampilkan angka skor kecocokan dalam teks.
         """
         try:
             response = self.model.generate_content(prompt)
@@ -76,35 +73,37 @@ class AdvancedCareerAI:
 
     def construct_user_radar_vector(self, user_data):
         sc = user_data.get('academic_scores', {})
-        it = user_data.get('interests', {})
-        cp = user_data.get('competencies', {})
         strm = user_data.get('stream', 'MIPA (IPA)')
 
-        # Nilai Inti (Common)
         mw, ind, ing = sc.get('Math_W', 0), sc.get('Indo', 0), sc.get('Inggris', 0)
 
-        # --- LOGIKA PENILAIAN BERDASARKAN JURUSAN (HEURISTIK LITERATUR) ---
+        # --- LOGIKA PENILAIAN MURNI DARI RAPOR (TANPA FORM MINAT) ---
         if strm == "MIPA (IPA)":
             s_logika = (mw * 0.3) + (sc.get('Math_M', 0) * 0.4) + (sc.get('Fisika', 0) * 0.3)
             s_sosial = (ind + ing) / 2.0
             s_sains = (sc.get('Fisika', 0) + sc.get('Kimia', 0) + sc.get('Biologi', 0)) / 3.0
             s_verbal = (ind + ing) / 2.0
+            s_seni = (ind + ing) / 2.0 * 0.8 # Proksi seni dari ekspresi bahasa
+            
         elif strm == "IPS":
             s_logika = (mw * 0.5) + (sc.get('Ekonomi', 0) * 0.5)
             s_sosial = (sc.get('Sosiologi', 0) * 0.4) + (sc.get('Sejarah', 0) * 0.3) + (sc.get('Geografi', 0) * 0.3)
             s_sains = (sc.get('Geografi', 0) * 0.7) + (mw * 0.3)
             s_verbal = (ind + ing) / 2.0
+            s_seni = (sc.get('Sejarah', 0) * 0.5) + (ind * 0.5) # Sejarah & Bahasa sbg proksi apresiasi seni budaya
+            
         else: # BAHASA
             s_logika = mw * 0.9
             s_sosial = (sc.get('Antropologi', 0) * 0.6) + (ind * 0.4)
             s_sains = mw * 0.7
             s_verbal = (ind * 0.3) + (ing * 0.3) + (sc.get('Sastra', 0) * 0.2) + (sc.get('Asing', 0) * 0.2)
+            s_seni = (sc.get('Sastra', 0) * 0.7) + (ind * 0.3) # Sastra adalah proksi kuat untuk Seni
 
-        # Transformasi ke Vektor 5 Dimensi
+        # Transformasi Vektor Akademik Dasar
         v_math = self._normalize(s_logika)
-        v_verbal = (self._normalize(s_verbal) * 0.6) + (self._normalize(cp.get('Komunikasi', 0), 5) * 0.4)
-        v_social = (self._normalize(s_sosial) * 0.6) + (self._normalize(it.get('Sosial', 0), 5) * 0.4)
-        v_art = (self._normalize(it.get('Seni', 0), 5) * 0.7) + (self._normalize(s_verbal) * 0.3)
+        v_verbal = self._normalize(s_verbal)
+        v_social = self._normalize(s_sosial)
+        v_art = self._normalize(s_seni)
         v_science = self._normalize(s_sains)
         
         return np.array([v_math, v_verbal, v_social, v_art, v_science])
@@ -118,7 +117,9 @@ class AdvancedCareerAI:
         for name, data in majors.items():
             sim_acad = cosine_similarity(user_radar, np.array(data['radar_vector']).reshape(1, -1))[0][0]
             sim_sem = cosine_similarity(user_essay, data['semantic_vector'].reshape(1, -1))[0][0]
-            score = (sim_acad * 0.6 + sim_sem * 0.4) * 100
+            
+            # Bobot AI: 50% Rapor, 50% Makna Esai (Karena Minat/Kompetensi dihapus, Esai dinaikkan bobotnya)
+            score = (sim_acad * 0.5 + sim_sem * 0.5) * 100
             results.append({'major': name, 'score': round(score, 1), 'vector': data['radar_vector'], 'user_vector': user_radar[0].tolist()})
         return sorted(results, key=lambda x: x['score'], reverse=True)[:5]
 
@@ -158,14 +159,13 @@ class SQLiteKnowledgeBase:
 
         data = asyncio.run(run())
         for m, desc in data:
-            # Heuristik Radar Berbasis Kata Kunci
             v = [0.1]*5
             d_lower = desc.lower()
-            if any(x in d_lower for x in ['hitung', 'logika', 'matematika']): v[0] = 0.9
-            if any(x in d_lower for x in ['bahasa', 'komunikasi']): v[1] = 0.9
-            if any(x in d_lower for x in ['sosial', 'masyarakat', 'manusia']): v[2] = 0.9
-            if any(x in d_lower for x in ['seni', 'kreatif', 'desain']): v[3] = 0.9
-            if any(x in d_lower for x in ['fisika', 'biologi', 'alam']): v[4] = 0.9
+            if any(x in d_lower for x in ['hitung', 'logika', 'matematika', 'teknik']): v[0] = 0.9
+            if any(x in d_lower for x in ['bahasa', 'komunikasi', 'sastra', 'tulis']): v[1] = 0.9
+            if any(x in d_lower for x in ['sosial', 'masyarakat', 'manusia', 'hukum']): v[2] = 0.9
+            if any(x in d_lower for x in ['seni', 'kreatif', 'desain', 'budaya']): v[3] = 0.9
+            if any(x in d_lower for x in ['fisika', 'biologi', 'alam', 'medis']): v[4] = 0.9
             self.save_major(m, desc, v, nlp_model.encode(desc))
 
 @st.cache_resource
@@ -214,23 +214,13 @@ def render_step_2():
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_step_3():
-    st.markdown('<div class="step-card"><h3>Langkah 3: Minat & Kompetensi</h3>', unsafe_allow_html=True)
+    st.markdown('<div class="step-card"><h3>Langkah 3: Esai Motivasi & Minat</h3>', unsafe_allow_html=True)
+    st.info("Ceritakan hobi, pelajaran yang paling Anda nikmati, dan bayangan pekerjaan Anda di masa depan. AI akan menganalisis minat Anda dari cerita ini.")
     with st.form("s3"):
-        i1 = st.slider("Minat Sosial", 1, 5, 3); i2 = st.slider("Minat Kreativitas/Seni", 1, 5, 3)
-        k1 = st.slider("Kemampuan Komunikasi", 1, 5, 3)
-        if st.form_submit_button("Lanjut"):
-            st.session_state.user_data['interests'] = {'Sosial': i1, 'Seni': i2}
-            st.session_state.user_data['competencies'] = {'Komunikasi': k1}
-            st.session_state.current_step = 3; st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-def render_step_4():
-    st.markdown('<div class="step-card"><h3>Langkah 4: Esai Motivasi</h3>', unsafe_allow_html=True)
-    with st.form("s4"):
-        es = st.text_area("Ceritakan cita-cita dan hobi Anda...", height=200)
+        es = st.text_area("Ceritakan di sini...", height=200)
         if st.form_submit_button("Analisis Hasil"):
-            if len(es.split()) < 10: st.error("Esai terlalu pendek.")
-            else: st.session_state.user_data['essay'] = es; st.session_state.current_step = 4; st.rerun()
+            if len(es.split()) < 10: st.error("Esai terlalu pendek. Minimal 10 kata.")
+            else: st.session_state.user_data['essay'] = es; st.session_state.current_step = 3; st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_results():
@@ -240,14 +230,12 @@ def render_results():
     recs = ai.generate_recommendations(st.session_state.user_data)
     top_3 = recs[:3]
     
-    # Radar Chart
     fig = go.Figure()
     lbls = ['Logika', 'Verbal', 'Sosial', 'Seni', 'Sains']
-    fig.add_trace(go.Scatterpolar(r=top_3[0]['user_vector'], theta=lbls, fill='toself', name='Profil Anda'))
+    fig.add_trace(go.Scatterpolar(r=top_3[0]['user_vector'], theta=lbls, fill='toself', name='Kapasitas Rapor Anda'))
     fig.add_trace(go.Scatterpolar(r=top_3[0]['vector'], theta=lbls, name=top_3[0]['major']))
     st.plotly_chart(fig, use_container_width=True)
 
-    # Gemini Analysis
     ga = GeminiCareerAnalyst()
     tabs = st.tabs([f"1. {t['major']}" for t in top_3])
     for i, tab in enumerate(tabs):
@@ -255,11 +243,10 @@ def render_results():
             st.subheader(f"Skor Kecocokan: {top_3[i]['score']}%")
             key = f"insight_{i}"
             if key not in st.session_state:
-                with st.spinner("Gemini sedang berpikir..."):
+                with st.spinner("Gemini sedang menganalisis rapor dan esai..."):
                     st.session_state[key] = ga.generate_personalized_insight(st.session_state.user_data, top_3[i]['major'], top_3[i]['score'])
             st.markdown(f'<div class="reasoning-text">{st.session_state[key]}</div>', unsafe_allow_html=True)
 
-    # --- DOWNLOAD PDF ---
     st.markdown("---")
     pdf = PDFReport()
     pdf.add_page()
@@ -302,8 +289,9 @@ def main():
                     st.success(f"{target} disimpan!")
                 if st.button("Logout"): st.session_state.admin = False; st.rerun()
 
-    st.progress((st.session_state.current_step + 1) / 5)
-    steps = [render_step_1, render_step_2, render_step_3, render_step_4, render_results]
+    # Progress bar sekarang dibagi 4 langkah
+    st.progress((st.session_state.current_step + 1) / 4)
+    steps = [render_step_1, render_step_2, render_step_3, render_results]
     steps[st.session_state.current_step]()
 
 if __name__ == "__main__":
