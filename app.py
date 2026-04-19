@@ -62,9 +62,10 @@ class GeminiCareerAnalyst:
         try:
             response = self.model.generate_content(prompt)
             return response.text
-        except:
-            return "Analisis otomatis gagal dimuat. Silakan hubungi konselor sekolah."
-
+        except Exception as e:
+            # Ini akan mencetak error aslinya langsung ke layar aplikasi Anda
+            return f"Gagal terhubung ke AI. Detail Error: {str(e)}"
+            
 class AdvancedCareerAI:
     def __init__(self, kb):
         self.kb = kb
