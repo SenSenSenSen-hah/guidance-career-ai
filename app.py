@@ -39,7 +39,7 @@ class GeminiCareerAnalyst:
     def __init__(self):
         try:
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.model = genai.GenerativeModel('gemini-2.5-flash')
         except:
             self.model = None
 
