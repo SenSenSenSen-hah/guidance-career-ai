@@ -320,7 +320,7 @@ def render_results_dashboard():
     for i, tab in enumerate(tabs):
         with tab:
             st.success(f"**Kecocokan: {top_3[i]['score']}%**")
-            with st.spinner("Gemini sedang menyusun analisis pakar..."):
+            with st.spinner("AI sedang menyusun analisis pakar..."):
                 if f"gemini_{i}" not in st.session_state:
                     st.session_state[f"gemini_{i}"] = gemini_analyst.generate_personalized_insight(st.session_state.user_data, top_3[i]['major'], top_3[i]['score'])
             st.markdown(f"<div class='reasoning-text'><b>Analisis Gemini LLM:</b><br>{st.session_state[f'gemini_{i}']}</div>", unsafe_allow_html=True)
@@ -371,42 +371,52 @@ def render_results_dashboard():
 def main():
     st.markdown('<h1 class="main-header">Autonomous Career AI</h1>', unsafe_allow_html=True)
     
-    # --- PERUBAHAN: LOGIKA PENGUNCIAN PANEL ADMIN ---
     with st.sidebar:
-        st.header("Admin Panel")
+        # Trik mendorong tombol admin ke bagian paling bawah sidebar
+        st.markdown("<br>" * 10, unsafe_allow_html=True) 
         
-        # 1. Cek apakah status admin sudah login di sesi ini
-        if 'admin_logged_in' not in st.session_state:
-            st.session_state.admin_logged_in = False
-            
-        # 2. Jika belum login, tampilkan form input password
-        if not st.session_state.admin_logged_in:
-            st.info("Panel terkunci. Masukkan sandi untuk mengakses fitur scraper.")
-            admin_pass = st.text_input("Sandi Admin:", type="password")
-            if st.button("Buka Kunci"):
-                try:
-                    # Mencocokkan dengan password di secrets.toml
-                    if admin_pass == st.secrets["admin_password"]:
-                        st.session_state.admin_logged_in = True
-                        st.rerun() # Muat ulang layar agar menu admin terbuka
-                    else:
-                        st.error("Sandi salah!")
-                except KeyError:
-                    st.error("Peringatan: 'admin_password' belum diatur di secrets.toml")
-                    
-        # 3. Jika sudah login, tampilkan tombol fitur rahasia
-        else:
-            st.success("🔓 Akses Admin Terbuka")
-            if st.button("Pindai Wikipedia"):
-                with st.spinner("Scraping..."):
-                    res = get_knowledge_base().discover_new_majors()
-                    st.success(f"Ditemukan {len(res)} data baru.") if res else st.info("Tidak ada data baru.")
-            
-            # Tombol untuk mengunci kembali
-            st.markdown("---")
-            if st.button("Kunci Kembali (Logout)"):
+        # --- PERUBAHAN: PANEL ADMIN JADI TOMBOL KECIL ---
+        with st.expander("⚙️"): # Hanya menampilkan ikon gir kecil
+            # 1. Cek status login
+            if 'admin_logged_in' not in st.session_state:
                 st.session_state.admin_logged_in = False
-                st.rerun()
+                
+            # 2. Jika belum login (Hanya muncul input sandi)
+            if not st.session_state.admin_logged_in:
+                admin_pass = st.text_input("Sandi Admin:", type="password")
+                if st.button("Buka"):
+                    try:
+                        if admin_pass == st.secrets["admin_password"]:
+                            st.session_state.admin_logged_in = True
+                            st.rerun()
+                        else:
+                            st.error("Sandi salah!")
+                    except KeyError:
+                        st.error("Sandi belum diatur di secrets.toml")
+                        
+            # 3. Jika sudah login (Menu Admin Terbuka)
+            else:
+                st.caption("🟢 Mode Admin Aktif")
+                
+                if st.button("Pindai Wikipedia (Acak)"):
+                    with st.spinner("Scraping..."):
+                        res = get_knowledge_base().discover_new_majors()
+                        st.success(f"{len(res)} jurusan baru.") if res else st.info("Nihil.")
+                
+                st.markdown("---")
+                target_major = st.text_input("Pencarian Spesifik:", placeholder="Arkeologi")
+                if st.button("Pelajari Jurusan Ini"):
+                    if target_major:
+                        with st.spinner(f"Mempelajari {target_major}..."):
+                            get_knowledge_base().process_and_save_new_majors([target_major.title()])
+                            st.success("Tersimpan di database!")
+                    else:
+                        st.error("Ketik nama jurusan.")
+
+                st.markdown("---")
+                if st.button("Logout"):
+                    st.session_state.admin_logged_in = False
+                    st.rerun()
     # ------------------------------------------------
         
     if 'user_data' not in st.session_state: st.session_state.user_data = {}; st.session_state.current_step = 0
