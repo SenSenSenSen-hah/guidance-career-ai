@@ -1,6 +1,6 @@
 streamlit
 numpy
-fpdf
+fpdf2
 plotly
 scikit-learn
 sentence-transformers
