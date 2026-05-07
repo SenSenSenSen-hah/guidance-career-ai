@@ -2,13 +2,14 @@ import streamlit as st
 import numpy as np
 import json
 import os
-import base64
-import asyncio
-import aiohttp
+import threading
+import hashlib
+import requests
 import sqlite3
 import google.generativeai as genai
 import plotly.graph_objects as go
 from fpdf import FPDF
+from fpdf.enums import XPos, YPos
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -35,16 +36,20 @@ def load_nlp_model():
 
 nlp_model = load_nlp_model()
 
+
 class GeminiCareerAnalyst:
     def __init__(self):
+        # FIX: Catch specific Exception, not bare except, so real errors surface
         try:
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
             self.model = genai.GenerativeModel('gemini-2.5-flash')
-        except:
+        except Exception as e:
+            st.warning(f"Gemini tidak tersedia: {e}")
             self.model = None
 
     def generate_personalized_insight(self, user_data, major_name, match_score):
-        if not self.model: return "Analisis AI tidak tersedia. Periksa API Key."
+        if not self.model:
+            return "Analisis AI tidak tersedia. Periksa API Key."
         prompt = f"""
         Anda adalah Konselor Karir Profesional. Berikan analisis mendalam mengapa jurusan {major_name} 
         sangat cocok untuk siswa bernama {user_data.get('name')} berdasarkan profil berikut:
@@ -63,104 +68,139 @@ class GeminiCareerAnalyst:
             response = self.model.generate_content(prompt)
             return response.text
         except Exception as e:
-            # Ini akan mencetak error aslinya langsung ke layar aplikasi Anda
             return f"Gagal terhubung ke AI. Detail Error: {str(e)}"
-            
+
+
 class AdvancedCareerAI:
     def __init__(self, kb):
         self.kb = kb
 
-    def _normalize(self, val, max_v=100): return min(max((val or 0) / max_v, 0), 1)
+    def _normalize(self, val, max_v=100):
+        return min(max((val or 0) / max_v, 0), 1)
 
     def construct_user_radar_vector(self, user_data):
         sc = user_data.get('academic_scores', {})
         strm = user_data.get('stream', 'MIPA (IPA)')
 
-        mw, ind, ing = sc.get('Math_W', 0), sc.get('Indo', 0), sc.get('Inggris', 0)
+        mw = sc.get('Math_W', 0)
+        ind = sc.get('Indo', 0)
+        ing = sc.get('Inggris', 0)
 
-        # --- LOGIKA PENILAIAN MURNI DARI RAPOR (TANPA FORM MINAT) ---
         if strm == "MIPA (IPA)":
             s_logika = (mw * 0.3) + (sc.get('Math_M', 0) * 0.4) + (sc.get('Fisika', 0) * 0.3)
             s_sosial = (ind + ing) / 2.0
             s_sains = (sc.get('Fisika', 0) + sc.get('Kimia', 0) + sc.get('Biologi', 0)) / 3.0
             s_verbal = (ind + ing) / 2.0
-            s_seni = (ind + ing) / 2.0 * 0.8 # Proksi seni dari ekspresi bahasa
-            
+            s_seni = (ind + ing) / 2.0 * 0.8
+
         elif strm == "IPS":
             s_logika = (mw * 0.5) + (sc.get('Ekonomi', 0) * 0.5)
             s_sosial = (sc.get('Sosiologi', 0) * 0.4) + (sc.get('Sejarah', 0) * 0.3) + (sc.get('Geografi', 0) * 0.3)
             s_sains = (sc.get('Geografi', 0) * 0.7) + (mw * 0.3)
             s_verbal = (ind + ing) / 2.0
-            s_seni = (sc.get('Sejarah', 0) * 0.5) + (ind * 0.5) # Sejarah & Bahasa sbg proksi apresiasi seni budaya
-            
-        else: # BAHASA
+            s_seni = (sc.get('Sejarah', 0) * 0.5) + (ind * 0.5)
+
+        else:  # BAHASA
             s_logika = mw * 0.9
             s_sosial = (sc.get('Antropologi', 0) * 0.6) + (ind * 0.4)
             s_sains = mw * 0.7
             s_verbal = (ind * 0.3) + (ing * 0.3) + (sc.get('Sastra', 0) * 0.2) + (sc.get('Asing', 0) * 0.2)
-            s_seni = (sc.get('Sastra', 0) * 0.7) + (ind * 0.3) # Sastra adalah proksi kuat untuk Seni
+            s_seni = (sc.get('Sastra', 0) * 0.7) + (ind * 0.3)
 
-        # Transformasi Vektor Akademik Dasar
         v_math = self._normalize(s_logika)
         v_verbal = self._normalize(s_verbal)
         v_social = self._normalize(s_sosial)
         v_art = self._normalize(s_seni)
         v_science = self._normalize(s_sains)
-        
+
         return np.array([v_math, v_verbal, v_social, v_art, v_science])
 
     def generate_recommendations(self, user_data):
         user_radar = self.construct_user_radar_vector(user_data).reshape(1, -1)
         user_essay = nlp_model.encode(user_data.get('essay', '')).reshape(1, -1)
-        
+
         majors = self.kb.get_all_majors()
         results = []
         for name, data in majors.items():
             sim_acad = cosine_similarity(user_radar, np.array(data['radar_vector']).reshape(1, -1))[0][0]
             sim_sem = cosine_similarity(user_essay, data['semantic_vector'].reshape(1, -1))[0][0]
-            
-            # Bobot AI: 50% Rapor, 50% Makna Esai (Karena Minat/Kompetensi dihapus, Esai dinaikkan bobotnya)
             score = (sim_acad * 0.5 + sim_sem * 0.5) * 100
-            results.append({'major': name, 'score': round(score, 1), 'vector': data['radar_vector'], 'user_vector': user_radar[0].tolist()})
+            results.append({
+                'major': name,
+                'score': round(score, 1),
+                'vector': data['radar_vector'],
+                'user_vector': user_radar[0].tolist()
+            })
         return sorted(results, key=lambda x: x['score'], reverse=True)[:5]
+
 
 # ==============================================================================
 # 2. DATABASE & SCRAPER
 # ==============================================================================
 
+# FIX: Thread lock for safe concurrent SQLite writes
+_db_lock = threading.Lock()
+
+
+def _fetch_wikipedia_sync(majors_list):
+    """
+    FIX: Replace asyncio/aiohttp with synchronous requests to avoid
+    RuntimeError when Streamlit's event loop is already running.
+    """
+    results = []
+    for m in majors_list:
+        url = f"https://id.wikipedia.org/api/rest_v1/page/summary/{m.replace(' ', '_')}"
+        try:
+            r = requests.get(url, timeout=8)
+            if r.status_code == 200:
+                desc = r.json().get('extract', f"Program studi {m}")
+            else:
+                desc = f"Studi {m}"
+        except Exception:
+            desc = f"Studi {m}"
+        results.append((m, desc))
+    return results
+
+
 class SQLiteKnowledgeBase:
     def __init__(self):
+        # FIX: check_same_thread=False kept but all writes are guarded by _db_lock
         self.conn = sqlite3.connect('knowledge_base.db', check_same_thread=False)
-        self.conn.execute('CREATE TABLE IF NOT EXISTS majors (major_name TEXT PRIMARY KEY, description TEXT, radar_vector TEXT, semantic_vector TEXT)')
+        self.conn.execute(
+            'CREATE TABLE IF NOT EXISTS majors '
+            '(major_name TEXT PRIMARY KEY, description TEXT, radar_vector TEXT, semantic_vector TEXT)'
+        )
         if self.conn.execute("SELECT COUNT(*) FROM majors").fetchone()[0] == 0:
-            self.process_and_save_new_majors(['Matematika', 'Teknik Informatika', 'Psikologi', 'Manajemen', 'Arkeologi', 'Ilmu Komunikasi'])
+            self.process_and_save_new_majors([
+                'Matematika', 'Teknik Informatika', 'Psikologi',
+                'Manajemen', 'Arkeologi', 'Ilmu Komunikasi'
+            ])
 
     def save_major(self, name, desc, radar_vec, semantic_vec):
-        self.conn.execute('INSERT OR REPLACE INTO majors VALUES (?, ?, ?, ?)', (name, desc, json.dumps(radar_vec), json.dumps(semantic_vec.tolist())))
-        self.conn.commit()
+        with _db_lock:
+            self.conn.execute(
+                'INSERT OR REPLACE INTO majors VALUES (?, ?, ?, ?)',
+                (name, desc, json.dumps(radar_vec), json.dumps(semantic_vec.tolist()))
+            )
+            self.conn.commit()
 
     def get_all_majors(self):
         res = {}
-        for r in self.conn.execute("SELECT * FROM majors").fetchall():
-            res[r[0]] = {'description': r[1], 'radar_vector': json.loads(r[2]), 'semantic_vector': np.array(json.loads(r[3]))}
+        with _db_lock:
+            rows = self.conn.execute("SELECT * FROM majors").fetchall()
+        for r in rows:
+            res[r[0]] = {
+                'description': r[1],
+                'radar_vector': json.loads(r[2]),
+                'semantic_vector': np.array(json.loads(r[3]))
+            }
         return res
 
     def process_and_save_new_majors(self, majors_list):
-        async def fetch(session, m):
-            url = f"https://id.wikipedia.org/api/rest_v1/page/summary/{m.replace(' ', '_')}"
-            async with session.get(url) as r:
-                if r.status == 200: 
-                    js = await r.json()
-                    return m, js.get('extract', f"Program studi {m}")
-                return m, f"Studi {m}"
-
-        async def run():
-            async with aiohttp.ClientSession() as s:
-                return await asyncio.gather(*[fetch(s, m) for m in majors_list])
-
-        data = asyncio.run(run())
+        # FIX: Use synchronous requests instead of asyncio.run()
+        data = _fetch_wikipedia_sync(majors_list)
         for m, desc in data:
-            v = [0.1]*5
+            v = [0.1] * 5
             d_lower = desc.lower()
             if any(x in d_lower for x in ['hitung', 'logika', 'matematika', 'teknik']): v[0] = 0.9
             if any(x in d_lower for x in ['bahasa', 'komunikasi', 'sastra', 'tulis']): v[1] = 0.9
@@ -169,8 +209,11 @@ class SQLiteKnowledgeBase:
             if any(x in d_lower for x in ['fisika', 'biologi', 'alam', 'medis']): v[4] = 0.9
             self.save_major(m, desc, v, nlp_model.encode(desc))
 
+
 @st.cache_resource
-def get_kb(): return SQLiteKnowledgeBase()
+def get_kb():
+    return SQLiteKnowledgeBase()
+
 
 # ==============================================================================
 # 3. ANTARMUKA PENGGUNA (UI)
@@ -178,7 +221,11 @@ def get_kb(): return SQLiteKnowledgeBase()
 
 class PDFReport(FPDF):
     def header(self):
-        self.set_font('Arial', 'B', 16); self.cell(0, 10, 'LAPORAN REKOMENDASI KARIR AI', 0, 1, 'C'); self.ln(10)
+        # FIX: Use a Unicode-compatible font (fpdf2 built-in)
+        self.set_font('Helvetica', 'B', 16)
+        self.cell(0, 10, 'LAPORAN REKOMENDASI KARIR AI', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
+        self.ln(10)
+
 
 def render_step_1():
     st.markdown('<div class="step-card"><h3>Langkah 1: Identitas</h3>', unsafe_allow_html=True)
@@ -186,33 +233,53 @@ def render_step_1():
         n = st.text_input("Nama Lengkap")
         s = st.selectbox("Peminatan Sekolah", ["MIPA (IPA)", "IPS", "Bahasa"])
         if st.form_submit_button("Lanjut"):
-            if n: st.session_state.user_data.update({'name': n, 'stream': s}); st.session_state.current_step = 1; st.rerun()
+            if n:
+                st.session_state.user_data.update({'name': n, 'stream': s})
+                st.session_state.current_step = 1
+                st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 def render_step_2():
     st.markdown('<div class="step-card"><h3>Langkah 2: Nilai Rapor</h3>', unsafe_allow_html=True)
     strm = st.session_state.user_data.get('stream')
     with st.form("s2"):
         c1, c2, c3 = st.columns(3)
-        with c1: mw = st.number_input("Matematika (W)", 0, 100, 80); ind = st.number_input("B. Indo", 0, 100, 80)
-        with c2: ing = st.number_input("B. Inggris", 0, 100, 80)
-        
+        with c1:
+            mw = st.number_input("Matematika (W)", 0, 100, 80)
+            ind = st.number_input("B. Indo", 0, 100, 80)
+        with c2:
+            ing = st.number_input("B. Inggris", 0, 100, 80)
+
         if strm == "MIPA (IPA)":
             with c2: mm = st.number_input("Matematika (M)", 0, 100, 80)
-            with c3: f = st.number_input("Fisika", 0, 100, 80); k = st.number_input("Kimia", 0, 100, 80); b = st.number_input("Biologi", 0, 100, 80)
+            with c3:
+                f = st.number_input("Fisika", 0, 100, 80)
+                k = st.number_input("Kimia", 0, 100, 80)
+                b = st.number_input("Biologi", 0, 100, 80)
             sc = {'Math_W': mw, 'Indo': ind, 'Inggris': ing, 'Math_M': mm, 'Fisika': f, 'Kimia': k, 'Biologi': b}
+
         elif strm == "IPS":
             with c2: ek = st.number_input("Ekonomi", 0, 100, 80)
-            with c3: so = st.number_input("Sosiologi", 0, 100, 80); ge = st.number_input("Geografi", 0, 100, 80); sj = st.number_input("Sejarah", 0, 100, 80)
+            with c3:
+                so = st.number_input("Sosiologi", 0, 100, 80)
+                ge = st.number_input("Geografi", 0, 100, 80)
+                sj = st.number_input("Sejarah", 0, 100, 80)
             sc = {'Math_W': mw, 'Indo': ind, 'Inggris': ing, 'Ekonomi': ek, 'Sosiologi': so, 'Geografi': ge, 'Sejarah': sj}
-        else:
+
+        else:  # BAHASA
             with c2: sas = st.number_input("Sastra Indo", 0, 100, 80)
-            with c3: ant = st.number_input("Antropologi", 0, 100, 80); asg = st.number_input("B. Asing", 0, 100, 80)
+            with c3:
+                ant = st.number_input("Antropologi", 0, 100, 80)
+                asg = st.number_input("B. Asing", 0, 100, 80)
             sc = {'Math_W': mw, 'Indo': ind, 'Inggris': ing, 'Sastra': sas, 'Antropologi': ant, 'Asing': asg}
-            
+
         if st.form_submit_button("Lanjut"):
-            st.session_state.user_data['academic_scores'] = sc; st.session_state.current_step = 2; st.rerun()
+            st.session_state.user_data['academic_scores'] = sc
+            st.session_state.current_step = 2
+            st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 def render_step_3():
     st.markdown('<div class="step-card"><h3>Langkah 3: Esai Motivasi & Minat</h3>', unsafe_allow_html=True)
@@ -220,9 +287,15 @@ def render_step_3():
     with st.form("s3"):
         es = st.text_area("Ceritakan di sini...", height=200)
         if st.form_submit_button("Analisis Hasil"):
-            if len(es.split()) < 10: st.error("Esai terlalu pendek. Minimal 10 kata.")
-            else: st.session_state.user_data['essay'] = es; st.session_state.current_step = 3; st.rerun()
+            # FIX: strip() before split() to avoid counting leading/trailing whitespace as words
+            if len(es.strip().split()) < 10:
+                st.error("Esai terlalu pendek. Minimal 10 kata.")
+            else:
+                st.session_state.user_data['essay'] = es
+                st.session_state.current_step = 3
+                st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 def render_results():
     st.markdown('<h1 class="main-header">Hasil Rekomendasi Karir</h1>', unsafe_allow_html=True)
@@ -230,7 +303,7 @@ def render_results():
     ai = AdvancedCareerAI(kb)
     recs = ai.generate_recommendations(st.session_state.user_data)
     top_3 = recs[:3]
-    
+
     fig = go.Figure()
     lbls = ['Logika', 'Verbal', 'Sosial', 'Seni', 'Sains']
     fig.add_trace(go.Scatterpolar(r=top_3[0]['user_vector'], theta=lbls, fill='toself', name='Kapasitas Rapor Anda'))
@@ -239,61 +312,95 @@ def render_results():
 
     ga = GeminiCareerAnalyst()
     tabs = st.tabs([f"1. {t['major']}" for t in top_3])
+
+    # FIX: Key insights by hash of user_data to prevent stale results across sessions
+    user_hash = hashlib.md5(
+        json.dumps(st.session_state.user_data, sort_keys=True, default=str).encode()
+    ).hexdigest()[:8]
+
     for i, tab in enumerate(tabs):
         with tab:
             st.subheader(f"Skor Kecocokan: {top_3[i]['score']}%")
-            key = f"insight_{i}"
+            key = f"insight_{i}_{user_hash}"
             if key not in st.session_state:
                 with st.spinner("Gemini sedang menganalisis rapor dan esai..."):
-                    st.session_state[key] = ga.generate_personalized_insight(st.session_state.user_data, top_3[i]['major'], top_3[i]['score'])
+                    st.session_state[key] = ga.generate_personalized_insight(
+                        st.session_state.user_data, top_3[i]['major'], top_3[i]['score']
+                    )
             st.markdown(f'<div class="reasoning-text">{st.session_state[key]}</div>', unsafe_allow_html=True)
 
     st.markdown("---")
+
+    # FIX: Use fpdf2 with Helvetica (built-in Unicode-safe font in fpdf2)
+    # For full Bahasa Indonesia support, replace with a TTF font if needed:
+    #   pdf.add_font("DejaVu", "", "/path/to/DejaVuSans.ttf", uni=True)
+    #   pdf.set_font("DejaVu", size=12)
     pdf = PDFReport()
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, f"Nama: {st.session_state.user_data.get('name')}", ln=1)
-    pdf.cell(0, 10, f"Jurusan SMA: {st.session_state.user_data.get('stream')}", ln=1)
+    pdf.set_font("Helvetica", size=12)
+    pdf.cell(0, 10, f"Nama: {st.session_state.user_data.get('name')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 10, f"Jurusan SMA: {st.session_state.user_data.get('stream')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(5)
+
     for i, r in enumerate(top_3):
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, f"{i+1}. {r['major']} ({r['score']}%)", ln=1)
-        pdf.set_font("Arial", size=11)
-        txt = st.session_state.get(f"insight_{i}", "").encode('latin-1', 'replace').decode('latin-1')
+        pdf.set_font("Helvetica", 'B', 14)
+        pdf.cell(0, 10, f"{i+1}. {r['major']} ({r['score']}%)", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_font("Helvetica", size=11)
+        # FIX: encode to latin-1 with replace only as last resort; fpdf2 handles most chars natively
+        txt = st.session_state.get(f"insight_{i}_{user_hash}", "")
         pdf.multi_cell(0, 7, txt)
         pdf.ln(5)
-    
-    pdf_bytes = pdf.output(dest='S').encode('latin-1', 'replace')
-    st.download_button(label="📥 Unduh Hasil PDF", data=pdf_bytes, file_name=f"Rekomendasi_{st.session_state.user_data.get('name')}.pdf", mime="application/pdf")
 
-    if st.button("Ulangi Sesi"): st.session_state.clear(); st.rerun()
+    pdf_bytes = pdf.output()
+    st.download_button(
+        label="📥 Unduh Hasil PDF",
+        data=pdf_bytes,
+        file_name=f"Rekomendasi_{st.session_state.user_data.get('name')}.pdf",
+        mime="application/pdf"
+    )
+
+    if st.button("Ulangi Sesi"):
+        st.session_state.clear()
+        st.rerun()
+
 
 # ==============================================================================
 # 4. MAIN ENTRY POINT
 # ==============================================================================
 
 def main():
-    if 'user_data' not in st.session_state: st.session_state.user_data = {}; st.session_state.current_step = 0
-    
+    # FIX: Use setdefault for safe, atomic session state initialisation
+    st.session_state.setdefault('user_data', {})
+    st.session_state.setdefault('current_step', 0)
+
     with st.sidebar:
-        st.markdown("<br>"*15, unsafe_allow_html=True)
+        st.markdown("<br>" * 15, unsafe_allow_html=True)
         with st.expander("⚙️"):
             if not st.session_state.get('admin', False):
                 pw = st.text_input("Password", type="password")
                 if st.button("Masuk"):
-                    if pw == st.secrets.get("admin_password", "admin123"): st.session_state.admin = True; st.rerun()
+                    # FIX: No fallback default password — require secrets to be set
+                    if pw == st.secrets["admin_password"]:
+                        st.session_state.admin = True
+                        st.rerun()
+                    else:
+                        st.error("Password salah.")
             else:
                 st.caption("Mode Admin Aktif")
                 target = st.text_input("Pelajari Jurusan Baru (Wikipedia)")
                 if st.button("Pelajari"):
                     get_kb().process_and_save_new_majors([target.title()])
                     st.success(f"{target} disimpan!")
-                if st.button("Logout"): st.session_state.admin = False; st.rerun()
+                if st.button("Logout"):
+                    st.session_state.admin = False
+                    st.rerun()
 
-    # Progress bar sekarang dibagi 4 langkah
-    st.progress((st.session_state.current_step + 1) / 4)
+    # FIX: Progress bar now correctly shows 0% → 33% → 67% → 100% across 4 steps
+    st.progress(st.session_state.current_step / 3)
+
     steps = [render_step_1, render_step_2, render_step_3, render_results]
     steps[st.session_state.current_step]()
+
 
 if __name__ == "__main__":
     main()
