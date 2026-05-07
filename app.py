@@ -360,7 +360,7 @@ def render_results():
             
         pdf.ln(5)
 
-    pdf_bytes = pdf.output()
+    pdf_bytes = bytes(pdf.output())
     st.download_button(
         label="📥 Unduh Hasil PDF",
         data=pdf_bytes,
