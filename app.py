@@ -50,7 +50,7 @@ class GeminiCareerAnalyst:
         if not self.model:
             return "Analisis AI tidak tersedia. Periksa API Key."
         
-        # PERBAIKAN: Penambahan instruksi "Cara Mengembangkan Diri"
+        # PROMPT IMPROVEMENT: Menambahkan strategi pengembangan diri [cite: 32, 660]
         prompt = f"""
         Anda adalah Konselor Karir Profesional. Berikan analisis mendalam mengapa jurusan {major_name} 
         sangat cocok untuk siswa bernama {user_data.get('name')} berdasarkan profil berikut:
@@ -63,7 +63,7 @@ class GeminiCareerAnalyst:
         2. Hubungkan secara logis antara nilai mata pelajaran spesifik dengan tuntutan jurusan {major_name}.
         3. Jadikan "Esai Motivasi" sebagai landasan utama penentu minat/bakat.
         4. Berikan proyeksi karir masa depan yang spesifik.
-        5. WAJIB TAMBAHKAN: Berikan saran konkret tentang "Cara Mengembangkan Diri" jika siswa diterima di jurusan ini (contoh: soft skill/hard skill yang harus diasah, kegiatan mahasiswa, atau sertifikasi yang berguna).
+        5. WAJIB TAMBAHKAN: Bagian khusus tentang "Cara Mengembangkan Diri" jika diterima di jurusan ini (seperti skill yang harus diasah atau sertifikasi relevan).
         6. Maksimal 4 paragraf. Jangan tampilkan angka skor kecocokan dalam teks.
         7. PENTING: Gunakan teks biasa (plain text). HINDARI penggunaan bullet points khusus, tanda kutip miring (smart quotes), atau simbol non-standar agar laporan dapat dicetak ke PDF dengan aman. Gunakan tanda strip (-) untuk daftar.
         """
@@ -163,7 +163,7 @@ class SQLiteKnowledgeBase:
             'CREATE TABLE IF NOT EXISTS majors '
             '(major_name TEXT PRIMARY KEY, description TEXT, radar_vector TEXT, semantic_vector TEXT)'
         )
-        # PERBAIKAN: Penambahan Jurusan Default Ekonomi & Akuntansi
+        # MODIFIKASI: Menambahkan jurusan default agar sistem tidak kosong di awal [cite: 616]
         if self.conn.execute("SELECT COUNT(*) FROM majors").fetchone()[0] == 0:
             self.process_and_save_new_majors([
                 'Matematika', 'Teknik Informatika', 'Psikologi',
@@ -194,16 +194,16 @@ class SQLiteKnowledgeBase:
     def process_and_save_new_majors(self, majors_list):
         data = _fetch_wikipedia_sync(majors_list)
         for m, desc in data:
-            # PERBAIKAN: Bobot dasar diubah menjadi 0.2 agar bentuk grafik masuk akal
-            v = [0.65, 0.65, 0.65, 0.65, 0.65]
+            # MODIFIKASI: Menggunakan pembobotan puncak (0.9) dan lembah (0.35) agar grafik normal
+            v = [0.35, 0.35, 0.35, 0.35, 0.35]
             d_lower = (m + " " + desc).lower()
             
-            # PERBAIKAN: Perluasan keyword matching untuk pengenalan yang lebih akurat
-            if any(x in d_lower for x in ['hitung', 'logika', 'matematika', 'teknik', 'komputer', 'sistem', 'analisis', 'angka', 'ekonomi', 'akuntansi', 'keuangan', 'bisnis', 'manajemen']): v[0] = 0.85
-            if any(x in d_lower for x in ['bahasa', 'komunikasi', 'sastra', 'tulis', 'informasi', 'jurnalistik', 'media', 'hubungan']): v[1] = 0.85
-            if any(x in d_lower for x in ['sosial', 'masyarakat', 'manusia', 'hukum', 'psikologi', 'mental', 'perilaku', 'jiwa', 'kebijakan', 'kognitif']): v[2] = 0.85
-            if any(x in d_lower for x in ['seni', 'kreatif', 'desain', 'budaya', 'visual', 'karya', 'arsitektur']): v[3] = 0.85
-            if any(x in d_lower for x in ['fisika', 'biologi', 'alam', 'medis', 'kimia', 'kesehatan', 'lingkungan', 'kedokteran', 'farmasi']): v[4] = 0.85
+            # Deteksi Kata Kunci (Keyword Matching) untuk Vektor Radar [cite: 625, 626]
+            if any(x in d_lower for x in ['hitung', 'logika', 'matematika', 'teknik', 'komputer', 'sistem', 'analisis', 'angka', 'ekonomi', 'akuntansi', 'keuangan', 'bisnis', 'manajemen', 'data']): v[0] = 0.90
+            if any(x in d_lower for x in ['bahasa', 'komunikasi', 'sastra', 'tulis', 'informasi', 'jurnalistik', 'media', 'hubungan', 'publik']): v[1] = 0.90
+            if any(x in d_lower for x in ['sosial', 'masyarakat', 'manusia', 'hukum', 'psikologi', 'mental', 'perilaku', 'jiwa', 'kebijakan', 'kognitif']): v[2] = 0.90
+            if any(x in d_lower for x in ['seni', 'kreatif', 'desain', 'budaya', 'visual', 'karya', 'arsitektur', 'estetika']): v[3] = 0.90
+            if any(x in d_lower for x in ['fisika', 'biologi', 'alam', 'medis', 'kimia', 'kesehatan', 'lingkungan', 'kedokteran', 'farmasi', 'molekuler', 'genetik', 'organisme', 'mikroba', 'hayati']): v[4] = 0.90
             
             self.save_major(m, desc, v, nlp_model.encode(desc))
 
@@ -301,62 +301,56 @@ def render_results():
     kb = get_kb()
     ga = GeminiCareerAnalyst()
     
-    # ==============================================================================
-    # PERBAIKAN: FITUR AGEN OTONOM (SELF-LEARNING) - TANPA ADMIN
-    # ==============================================================================
+    # MODIFIKASI: FITUR AGEN OTONOM (SELF-LEARNING) - Mencari jurusan baru tanpa admin [cite: 616, 713, 745]
     user_essay = st.session_state.user_data.get('essay', '')
     if user_essay and ga.model:
-        # Gunakan hash esai agar agen tidak scraping berulang kali jika user refresh
         essay_hash = hashlib.md5(user_essay.encode()).hexdigest()[:8]
         if st.session_state.get('last_scraped_essay') != essay_hash:
             with st.spinner("🤖 Agen sedang menganalisis esai dan mencari jurusan baru di internet..."):
                 try:
-                    prompt_discovery = f"""
-                    Baca esai ini: '{user_essay}'. 
-                    Sebutkan 2 nama program studi S1 di Indonesia yang sangat spesifik dan cocok dengan minat di esai tersebut. 
-                    HANYA tulis nama jurusannya saja, pisahkan dengan koma. 
-                    Contoh format: Teknik Dirgantara, Oseanografi
-                    """
+                    prompt_discovery = f"Baca esai ini: '{user_essay}'. Sebutkan 2 nama prodi S1 di Indonesia yang sangat spesifik dan cocok. HANYA tulis nama jurusannya, pisahkan dengan koma."
                     resp = ga.model.generate_content(prompt_discovery)
                     suggested_majors = [m.strip().title() for m in resp.text.replace('.', '').split(',')]
                     
                     existing_majors = kb.get_all_majors().keys()
                     new_majors = [m for m in suggested_majors if m not in existing_majors and len(m) > 4]
-                    
                     if new_majors:
-                        st.toast(f"🔍 Menemukan minat unik! Agen sedang mempelajari: {', '.join(new_majors)}...")
+                        st.toast(f"🔍 Menemukan minat unik! Mempelajari: {', '.join(new_majors)}...")
                         kb.process_and_save_new_majors(new_majors)
-                    
                     st.session_state['last_scraped_essay'] = essay_hash
-                except Exception as e:
-                    pass # Lanjut menggunakan database yang ada jika internet/API gagal
-    # ==============================================================================
+                except Exception: pass
 
     ai = AdvancedCareerAI(kb)
     recs = ai.generate_recommendations(st.session_state.user_data)
     top_3 = recs[:3]
 
+    # MODIFIKASI: Visualisasi Radar Chart dengan warna kontras dan skala tetap [cite: 655]
     fig = go.Figure()
     lbls = ['Logika', 'Verbal', 'Sosial', 'Seni', 'Sains']
-    fig.add_trace(go.Scatterpolar(r=top_3[0]['user_vector'], theta=lbls, fill='toself', name='Kapasitas Rapor Anda'))
-    fig.add_trace(go.Scatterpolar(r=top_3[0]['vector'], theta=lbls, name=top_3[0]['major']))
+    
+    fig.add_trace(go.Scatterpolar(
+        r=top_3[0]['user_vector'], theta=lbls, fill='toself', name='Kapasitas Rapor Anda',
+        line=dict(color='#1f77b4', width=2), fillcolor='rgba(31, 119, 180, 0.4)'
+    ))
+    fig.add_trace(go.Scatterpolar(
+        r=top_3[0]['vector'], theta=lbls, fill='toself', name=f"Tuntutan {top_3[0]['major']}",
+        line=dict(color='#ff7f0e', width=2), fillcolor='rgba(255, 127, 14, 0.4)'
+    ))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=True)
     st.plotly_chart(fig, use_container_width=True)
 
+    # PERBAIKAN: Penomoran tab yang dinamis
     tabs = st.tabs([f"{i+1}. {t['major']}" for i, t in enumerate(top_3)])
 
-    user_hash = hashlib.md5(
-        json.dumps(st.session_state.user_data, sort_keys=True, default=str).encode()
-    ).hexdigest()[:8]
+    user_hash = hashlib.md5(json.dumps(st.session_state.user_data, sort_keys=True, default=str).encode()).hexdigest()[:8]
 
     for i, tab in enumerate(tabs):
         with tab:
             st.subheader(f"Skor Kecocokan: {top_3[i]['score']}%")
             key = f"insight_{i}_{user_hash}"
             if key not in st.session_state:
-                with st.spinner("Gemini sedang menganalisis rapor dan menyusun strategi pengembangan diri..."):
-                    st.session_state[key] = ga.generate_personalized_insight(
-                        st.session_state.user_data, top_3[i]['major'], top_3[i]['score']
-                    )
+                with st.spinner("Gemini sedang menyusun strategi pengembangan diri..."):
+                    st.session_state[key] = ga.generate_personalized_insight(st.session_state.user_data, top_3[i]['major'], top_3[i]['score'])
             st.markdown(f'<div class="reasoning-text">{st.session_state[key]}</div>', unsafe_allow_html=True)
 
     st.markdown("---")
@@ -372,32 +366,19 @@ def render_results():
         pdf.set_font("Helvetica", 'B', 14)
         pdf.cell(0, 10, f"{i+1}. {r['major']} ({r['score']}%)", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.set_font("Helvetica", size=11)
-        
         raw_txt = st.session_state.get(f"insight_{i}_{user_hash}", "")
         safe_txt = sanitize_text_for_pdf(raw_txt)
-        
-        try:
-            pdf.multi_cell(0, 7, safe_txt)
-        except Exception as e:
-            pdf.multi_cell(0, 7, "[Error: Teks mengandung format yang tidak didukung untuk dicetak]")
-            st.error(f"Peringatan PDF: {e}")
-            
+        try: pdf.multi_cell(0, 7, safe_txt)
+        except Exception as e: pdf.multi_cell(0, 7, "[Error: Karakter tidak didukung]")
         pdf.ln(5)
 
-    # PERBAIKAN: Format bytes agar Streamlit tidak crash
+    # PERBAIKAN: Konversi bytearray ke bytes untuk download button [cite: 661]
     pdf_bytes = bytes(pdf.output())
-    
-    st.download_button(
-        label="📥 Unduh Hasil PDF",
-        data=pdf_bytes,
-        file_name=f"Rekomendasi_{st.session_state.user_data.get('name')}.pdf",
-        mime="application/pdf"
-    )
+    st.download_button(label="📥 Unduh Hasil PDF", data=pdf_bytes, file_name=f"Rekomendasi_{st.session_state.user_data.get('name')}.pdf", mime="application/pdf")
 
     if st.button("Ulangi Sesi"):
         st.session_state.clear()
         st.rerun()
-
 
 # ==============================================================================
 # 4. MAIN ENTRY POINT
@@ -416,8 +397,7 @@ def main():
                     if "admin_password" in st.secrets and pw == st.secrets["admin_password"]:
                         st.session_state.admin = True
                         st.rerun()
-                    else:
-                        st.error("Password salah atau tidak diatur.")
+                    else: st.error("Password salah.")
             else:
                 st.caption("Mode Admin Aktif")
                 target = st.text_input("Pelajari Jurusan Baru (Wikipedia)")
@@ -429,7 +409,6 @@ def main():
                     st.rerun()
 
     st.progress(st.session_state.current_step / 3)
-
     steps = [render_step_1, render_step_2, render_step_3, render_results]
     steps[st.session_state.current_step]()
 
