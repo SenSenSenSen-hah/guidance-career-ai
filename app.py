@@ -195,7 +195,7 @@ class SQLiteKnowledgeBase:
         data = _fetch_wikipedia_sync(majors_list)
         for m, desc in data:
             # PERBAIKAN: Bobot dasar diubah menjadi 0.2 agar bentuk grafik masuk akal
-            v = [0.2, 0.2, 0.2, 0.2, 0.2]
+            v = [0.65, 0.65, 0.65, 0.65, 0.65]
             d_lower = (m + " " + desc).lower()
             
             # PERBAIKAN: Perluasan keyword matching untuk pengenalan yang lebih akurat
