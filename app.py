@@ -342,7 +342,7 @@ def render_results():
     fig.add_trace(go.Scatterpolar(r=top_3[0]['vector'], theta=lbls, name=top_3[0]['major']))
     st.plotly_chart(fig, use_container_width=True)
 
-    tabs = st.tabs([f"1. {t['major']}" for t in top_3])
+    tabs = st.tabs([f"{i+1}. {t['major']}" for i, t in enumerate(top_3)])
 
     user_hash = hashlib.md5(
         json.dumps(st.session_state.user_data, sort_keys=True, default=str).encode()
