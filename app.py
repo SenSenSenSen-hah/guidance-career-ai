@@ -50,7 +50,7 @@ class GeminiCareerAnalyst:
         if not self.model:
             return "Analisis AI tidak tersedia. Periksa API Key."
         
-        # IMPROVEMENT: Penambahan instruksi eksplisit agar menghindari karakter Unicode
+        # PERBAIKAN: Penambahan instruksi "Cara Mengembangkan Diri"
         prompt = f"""
         Anda adalah Konselor Karir Profesional. Berikan analisis mendalam mengapa jurusan {major_name} 
         sangat cocok untuk siswa bernama {user_data.get('name')} berdasarkan profil berikut:
@@ -62,9 +62,10 @@ class GeminiCareerAnalyst:
         1. Gunakan Bahasa Indonesia yang akademis namun memotivasi.
         2. Hubungkan secara logis antara nilai mata pelajaran spesifik dengan tuntutan jurusan {major_name}.
         3. Jadikan "Esai Motivasi" sebagai landasan utama penentu minat/bakat.
-        4. Berikan proyeksi karir masa depan.
-        5. Maksimal 3 paragraf. Jangan tampilkan angka skor kecocokan dalam teks.
-        6. PENTING: Gunakan teks biasa (plain text). HINDARI penggunaan bullet points khusus, tanda kutip miring (smart quotes), atau simbol non-standar agar laporan dapat dicetak ke PDF dengan aman. Gunakan tanda strip (-) untuk daftar.
+        4. Berikan proyeksi karir masa depan yang spesifik.
+        5. WAJIB TAMBAHKAN: Berikan saran konkret tentang "Cara Mengembangkan Diri" jika siswa diterima di jurusan ini (contoh: soft skill/hard skill yang harus diasah, kegiatan mahasiswa, atau sertifikasi yang berguna).
+        6. Maksimal 4 paragraf. Jangan tampilkan angka skor kecocokan dalam teks.
+        7. PENTING: Gunakan teks biasa (plain text). HINDARI penggunaan bullet points khusus, tanda kutip miring (smart quotes), atau simbol non-standar agar laporan dapat dicetak ke PDF dengan aman. Gunakan tanda strip (-) untuk daftar.
         """
         try:
             response = self.model.generate_content(prompt)
@@ -86,13 +87,6 @@ class AdvancedCareerAI:
         mw = sc.get('Math_W', 0)
         ind = sc.get('Indo', 0)
         ing = sc.get('Inggris', 0)
-
-        # KORELASI RIASEC UNTUK SKRIPSI:
-        # s_logika (Math) -> Investigative (I) / Conventional (C)
-        # s_sosial (Social) -> Social (S)
-        # s_verbal (Verbal) -> Enterprising (E) / Social (S)
-        # s_seni (Art) -> Artistic (A)
-        # s_sains (Science) -> Realistic (R) / Investigative (I)
         
         if strm == "MIPA (IPA)":
             s_logika = (mw * 0.3) + (sc.get('Math_M', 0) * 0.4) + (sc.get('Fisika', 0) * 0.3)
@@ -131,7 +125,6 @@ class AdvancedCareerAI:
             sim_acad = cosine_similarity(user_radar, np.array(data['radar_vector']).reshape(1, -1))[0][0]
             sim_sem = cosine_similarity(user_essay, data['semantic_vector'].reshape(1, -1))[0][0]
             
-            # Bobot: 50% Rapor, 50% NLP Esai
             score = (sim_acad * 0.5 + sim_sem * 0.5) * 100
             results.append({
                 'major': name,
@@ -170,10 +163,12 @@ class SQLiteKnowledgeBase:
             'CREATE TABLE IF NOT EXISTS majors '
             '(major_name TEXT PRIMARY KEY, description TEXT, radar_vector TEXT, semantic_vector TEXT)'
         )
+        # PERBAIKAN: Penambahan Jurusan Default Ekonomi & Akuntansi
         if self.conn.execute("SELECT COUNT(*) FROM majors").fetchone()[0] == 0:
             self.process_and_save_new_majors([
                 'Matematika', 'Teknik Informatika', 'Psikologi',
-                'Manajemen', 'Arkeologi', 'Ilmu Komunikasi'
+                'Manajemen', 'Arkeologi', 'Ilmu Komunikasi',
+                'Ilmu Ekonomi', 'Akuntansi'
             ])
 
     def save_major(self, name, desc, radar_vec, semantic_vec):
@@ -199,13 +194,17 @@ class SQLiteKnowledgeBase:
     def process_and_save_new_majors(self, majors_list):
         data = _fetch_wikipedia_sync(majors_list)
         for m, desc in data:
-            v = [0.1] * 5
-            d_lower = desc.lower()
-            if any(x in d_lower for x in ['hitung', 'logika', 'matematika', 'teknik', 'komputer']): v[0] = 0.9
-            if any(x in d_lower for x in ['bahasa', 'komunikasi', 'sastra', 'tulis']): v[1] = 0.9
-            if any(x in d_lower for x in ['sosial', 'masyarakat', 'manusia', 'hukum']): v[2] = 0.9
-            if any(x in d_lower for x in ['seni', 'kreatif', 'desain', 'budaya']): v[3] = 0.9
-            if any(x in d_lower for x in ['fisika', 'biologi', 'alam', 'medis', 'kimia']): v[4] = 0.9
+            # PERBAIKAN: Bobot dasar diubah menjadi 0.2 agar bentuk grafik masuk akal
+            v = [0.2, 0.2, 0.2, 0.2, 0.2]
+            d_lower = (m + " " + desc).lower()
+            
+            # PERBAIKAN: Perluasan keyword matching untuk pengenalan yang lebih akurat
+            if any(x in d_lower for x in ['hitung', 'logika', 'matematika', 'teknik', 'komputer', 'sistem', 'analisis', 'angka', 'ekonomi', 'akuntansi', 'keuangan', 'bisnis', 'manajemen']): v[0] = 0.85
+            if any(x in d_lower for x in ['bahasa', 'komunikasi', 'sastra', 'tulis', 'informasi', 'jurnalistik', 'media', 'hubungan']): v[1] = 0.85
+            if any(x in d_lower for x in ['sosial', 'masyarakat', 'manusia', 'hukum', 'psikologi', 'mental', 'perilaku', 'jiwa', 'kebijakan', 'kognitif']): v[2] = 0.85
+            if any(x in d_lower for x in ['seni', 'kreatif', 'desain', 'budaya', 'visual', 'karya', 'arsitektur']): v[3] = 0.85
+            if any(x in d_lower for x in ['fisika', 'biologi', 'alam', 'medis', 'kimia', 'kesehatan', 'lingkungan', 'kedokteran', 'farmasi']): v[4] = 0.85
+            
             self.save_major(m, desc, v, nlp_model.encode(desc))
 
 @st.cache_resource
@@ -223,16 +222,11 @@ class PDFReport(FPDF):
         self.cell(0, 10, 'LAPORAN REKOMENDASI KARIR AI', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
         self.ln(10)
 
-# IMPROVEMENT: Fungsi pembersih teks agar PDF tidak crash karena karakter khusus Gemini
 def sanitize_text_for_pdf(text):
-    # Mengganti karakter kutip pintar
     text = re.sub(r'[“”]', '"', text)
     text = re.sub(r'[‘’]', "'", text)
-    # Mengganti em-dash dan en-dash
     text = re.sub(r'[—–]', '-', text)
-    # Mengganti bullet points Unicode
     text = re.sub(r'[•·]', '-', text)
-    # Menghapus emoji atau karakter non-latin-1 lainnya secara paksa
     text = text.encode('latin-1', 'replace').decode('latin-1')
     return text
 
@@ -305,6 +299,39 @@ def render_step_3():
 def render_results():
     st.markdown('<h1 class="main-header">Hasil Rekomendasi Karir</h1>', unsafe_allow_html=True)
     kb = get_kb()
+    ga = GeminiCareerAnalyst()
+    
+    # ==============================================================================
+    # PERBAIKAN: FITUR AGEN OTONOM (SELF-LEARNING) - TANPA ADMIN
+    # ==============================================================================
+    user_essay = st.session_state.user_data.get('essay', '')
+    if user_essay and ga.model:
+        # Gunakan hash esai agar agen tidak scraping berulang kali jika user refresh
+        essay_hash = hashlib.md5(user_essay.encode()).hexdigest()[:8]
+        if st.session_state.get('last_scraped_essay') != essay_hash:
+            with st.spinner("🤖 Agen sedang menganalisis esai dan mencari jurusan baru di internet..."):
+                try:
+                    prompt_discovery = f"""
+                    Baca esai ini: '{user_essay}'. 
+                    Sebutkan 2 nama program studi S1 di Indonesia yang sangat spesifik dan cocok dengan minat di esai tersebut. 
+                    HANYA tulis nama jurusannya saja, pisahkan dengan koma. 
+                    Contoh format: Teknik Dirgantara, Oseanografi
+                    """
+                    resp = ga.model.generate_content(prompt_discovery)
+                    suggested_majors = [m.strip().title() for m in resp.text.replace('.', '').split(',')]
+                    
+                    existing_majors = kb.get_all_majors().keys()
+                    new_majors = [m for m in suggested_majors if m not in existing_majors and len(m) > 4]
+                    
+                    if new_majors:
+                        st.toast(f"🔍 Menemukan minat unik! Agen sedang mempelajari: {', '.join(new_majors)}...")
+                        kb.process_and_save_new_majors(new_majors)
+                    
+                    st.session_state['last_scraped_essay'] = essay_hash
+                except Exception as e:
+                    pass # Lanjut menggunakan database yang ada jika internet/API gagal
+    # ==============================================================================
+
     ai = AdvancedCareerAI(kb)
     recs = ai.generate_recommendations(st.session_state.user_data)
     top_3 = recs[:3]
@@ -315,7 +342,6 @@ def render_results():
     fig.add_trace(go.Scatterpolar(r=top_3[0]['vector'], theta=lbls, name=top_3[0]['major']))
     st.plotly_chart(fig, use_container_width=True)
 
-    ga = GeminiCareerAnalyst()
     tabs = st.tabs([f"1. {t['major']}" for t in top_3])
 
     user_hash = hashlib.md5(
@@ -327,7 +353,7 @@ def render_results():
             st.subheader(f"Skor Kecocokan: {top_3[i]['score']}%")
             key = f"insight_{i}_{user_hash}"
             if key not in st.session_state:
-                with st.spinner("Gemini sedang menganalisis rapor dan esai..."):
+                with st.spinner("Gemini sedang menganalisis rapor dan menyusun strategi pengembangan diri..."):
                     st.session_state[key] = ga.generate_personalized_insight(
                         st.session_state.user_data, top_3[i]['major'], top_3[i]['score']
                     )
@@ -335,7 +361,6 @@ def render_results():
 
     st.markdown("---")
 
-    # Membuat Dokumen PDF
     pdf = PDFReport()
     pdf.add_page()
     pdf.set_font("Helvetica", size=12)
@@ -348,7 +373,6 @@ def render_results():
         pdf.cell(0, 10, f"{i+1}. {r['major']} ({r['score']}%)", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.set_font("Helvetica", size=11)
         
-        # Mengambil insight dan membersihkannya sebelum dimasukkan ke PDF
         raw_txt = st.session_state.get(f"insight_{i}_{user_hash}", "")
         safe_txt = sanitize_text_for_pdf(raw_txt)
         
@@ -360,7 +384,9 @@ def render_results():
             
         pdf.ln(5)
 
+    # PERBAIKAN: Format bytes agar Streamlit tidak crash
     pdf_bytes = bytes(pdf.output())
+    
     st.download_button(
         label="📥 Unduh Hasil PDF",
         data=pdf_bytes,
