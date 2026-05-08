@@ -306,7 +306,7 @@ def render_results():
     if user_essay and ga.model:
         essay_hash = hashlib.md5(user_essay.encode()).hexdigest()[:8]
         if st.session_state.get('last_scraped_essay') != essay_hash:
-            with st.spinner("🤖 Agen sedang menganalisis esai dan mencari jurusan baru di internet..."):
+            with st.spinner("🤖 AI sedang menganalisis esai dan mencari jurusan yang cocok"):
                 try:
                     prompt_discovery = f"Baca esai ini: '{user_essay}'. Sebutkan 2 nama prodi S1 di Indonesia yang sangat spesifik dan cocok. HANYA tulis nama jurusannya, pisahkan dengan koma."
                     resp = ga.model.generate_content(prompt_discovery)
@@ -349,7 +349,7 @@ def render_results():
             st.subheader(f"Skor Kecocokan: {top_3[i]['score']}%")
             key = f"insight_{i}_{user_hash}"
             if key not in st.session_state:
-                with st.spinner("Gemini sedang menyusun strategi pengembangan diri..."):
+                with st.spinner("AI sedang menyusun strategi pengembangan diri..."):
                     st.session_state[key] = ga.generate_personalized_insight(st.session_state.user_data, top_3[i]['major'], top_3[i]['score'])
             st.markdown(f'<div class="reasoning-text">{st.session_state[key]}</div>', unsafe_allow_html=True)
 
