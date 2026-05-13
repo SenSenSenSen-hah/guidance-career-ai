@@ -14,9 +14,8 @@ from fpdf.enums import XPos, YPos
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# ==============================================================================
 # 0. KONFIGURASI AWAL
-# ==============================================================================
+
 st.set_page_config(page_title="Autonomous Career AI", layout="wide")
 
 st.markdown("""
@@ -27,9 +26,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ==============================================================================
-# 1. ENGINE KECERDASAN BUATAN (AI)
-# ==============================================================================
+# 1. ENGINE (AI)
 
 @st.cache_resource
 def load_nlp_model():
@@ -50,7 +47,6 @@ class GeminiCareerAnalyst:
         if not self.model:
             return "Analisis AI tidak tersedia. Periksa API Key."
         
-        # PROMPT IMPROVEMENT: Menambahkan strategi pengembangan diri [cite: 32, 660]
         prompt = f"""
         Anda adalah Konselor Karir Profesional. Berikan analisis mendalam mengapa jurusan {major_name} 
         sangat cocok untuk siswa bernama {user_data.get('name')} berdasarkan profil berikut:
@@ -134,10 +130,7 @@ class AdvancedCareerAI:
             })
         return sorted(results, key=lambda x: x['score'], reverse=True)[:5]
 
-
-# ==============================================================================
 # 2. DATABASE & SCRAPER
-# ==============================================================================
 
 _db_lock = threading.Lock()
 
@@ -163,7 +156,7 @@ class SQLiteKnowledgeBase:
             'CREATE TABLE IF NOT EXISTS majors '
             '(major_name TEXT PRIMARY KEY, description TEXT, radar_vector TEXT, semantic_vector TEXT)'
         )
-        # MODIFIKASI: Menambahkan jurusan default agar sistem tidak kosong di awal [cite: 616]
+        
         if self.conn.execute("SELECT COUNT(*) FROM majors").fetchone()[0] == 0:
             self.process_and_save_new_majors([
                 'Matematika', 'Teknik Informatika', 'Psikologi',
@@ -198,7 +191,6 @@ class SQLiteKnowledgeBase:
             v = [0.35, 0.35, 0.35, 0.35, 0.35]
             d_lower = (m + " " + desc).lower()
             
-            # Deteksi Kata Kunci (Keyword Matching) untuk Vektor Radar [cite: 625, 626]
             if any(x in d_lower for x in ['hitung', 'logika', 'matematika', 'teknik', 'komputer', 'sistem', 'analisis', 'angka', 'ekonomi', 'akuntansi', 'keuangan', 'bisnis', 'manajemen', 'data']): v[0] = 0.90
             if any(x in d_lower for x in ['bahasa', 'komunikasi', 'sastra', 'tulis', 'informasi', 'jurnalistik', 'media', 'hubungan', 'publik']): v[1] = 0.90
             if any(x in d_lower for x in ['sosial', 'masyarakat', 'manusia', 'hukum', 'psikologi', 'mental', 'perilaku', 'jiwa', 'kebijakan', 'kognitif']): v[2] = 0.90
@@ -211,10 +203,7 @@ class SQLiteKnowledgeBase:
 def get_kb():
     return SQLiteKnowledgeBase()
 
-
-# ==============================================================================
-# 3. ANTARMUKA PENGGUNA (UI) & PEMBUATAN PDF
-# ==============================================================================
+# 3. UI PENGGUNA & PEMBUATAN PDF
 
 class PDFReport(FPDF):
     def header(self):
@@ -301,7 +290,6 @@ def render_results():
     kb = get_kb()
     ga = GeminiCareerAnalyst()
     
-    # MODIFIKASI: FITUR AGEN OTONOM (SELF-LEARNING) - Mencari jurusan baru tanpa admin [cite: 616, 713, 745]
     user_essay = st.session_state.user_data.get('essay', '')
     if user_essay and ga.model:
         essay_hash = hashlib.md5(user_essay.encode()).hexdigest()[:8]
@@ -324,7 +312,6 @@ def render_results():
     recs = ai.generate_recommendations(st.session_state.user_data)
     top_3 = recs[:3]
 
-    # MODIFIKASI: Visualisasi Radar Chart dengan warna kontras dan skala tetap [cite: 655]
     fig = go.Figure()
     lbls = ['Logika', 'Verbal', 'Sosial', 'Seni', 'Sains']
     
@@ -339,7 +326,6 @@ def render_results():
     fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=True)
     st.plotly_chart(fig, use_container_width=True)
 
-    # PERBAIKAN: Penomoran tab yang dinamis
     tabs = st.tabs([f"{i+1}. {t['major']}" for i, t in enumerate(top_3)])
 
     user_hash = hashlib.md5(json.dumps(st.session_state.user_data, sort_keys=True, default=str).encode()).hexdigest()[:8]
@@ -372,7 +358,6 @@ def render_results():
         except Exception as e: pdf.multi_cell(0, 7, "[Error: Karakter tidak didukung]")
         pdf.ln(5)
 
-    # PERBAIKAN: Konversi bytearray ke bytes untuk download button [cite: 661]
     pdf_bytes = bytes(pdf.output())
     st.download_button(label="📥 Unduh Hasil PDF", data=pdf_bytes, file_name=f"Rekomendasi_{st.session_state.user_data.get('name')}.pdf", mime="application/pdf")
 
@@ -380,34 +365,11 @@ def render_results():
         st.session_state.clear()
         st.rerun()
 
-# ==============================================================================
-# 4. MAIN ENTRY POINT
-# ==============================================================================
+# 4. MAIN
 
 def main():
     st.session_state.setdefault('user_data', {})
     st.session_state.setdefault('current_step', 0)
-
-    with st.sidebar:
-        st.markdown("<br>" * 15, unsafe_allow_html=True)
-        with st.expander("⚙️"):
-            if not st.session_state.get('admin', False):
-                pw = st.text_input("Password", type="password")
-                if st.button("Masuk"):
-                    if "admin_password" in st.secrets and pw == st.secrets["admin_password"]:
-                        st.session_state.admin = True
-                        st.rerun()
-                    else: st.error("Password salah.")
-            else:
-                st.caption("Mode Admin Aktif")
-                target = st.text_input("Pelajari Jurusan Baru (Wikipedia)")
-                if st.button("Pelajari"):
-                    get_kb().process_and_save_new_majors([target.title()])
-                    st.success(f"{target} disimpan!")
-                if st.button("Logout"):
-                    st.session_state.admin = False
-                    st.rerun()
-
     st.progress(st.session_state.current_step / 3)
     steps = [render_step_1, render_step_2, render_step_3, render_results]
     steps[st.session_state.current_step]()
