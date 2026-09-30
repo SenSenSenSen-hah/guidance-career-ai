@@ -155,6 +155,37 @@ def get_agent():
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         
+        # 1. Ask Google AI Studio directly which models this key can use
+        all_models = list(genai.list_models())
+        valid_models = [
+            m.name for m in all_models 
+            if 'generateContent' in m.supported_generation_methods
+        ]
+        
+        if not valid_models:
+            st.error("API Key connects, but no models supporting 'generateContent' were returned.")
+            return None
+
+        # 2. Prefer flash/pro models from the active list returned by Google
+        chosen_model = None
+        preference_order = [
+            'models/gemini-2.0-flash',
+            'models/gemini-1.5-flash',
+            'models/gemini-1.5-pro',
+            'models/gemini-1.5-flash-latest'
+        ]
+        
+        for pref in preference_order:
+            if pref in valid_models:
+                chosen_model = pref
+                break
+                
+        # Fallback to the first available model if none of the above match
+        if not chosen_model:
+            chosen_model = valid_models[0]
+
+        st.sidebar.info(f"Connected Model: `{chosen_model}`")
+
         system_instruction = """
         Kamu adalah Autonomous Career Agent. Kamu memiliki 3 ALAT (Tools):
         1. search_major_with_rag: Untuk mencari jurusan.
@@ -169,18 +200,19 @@ def get_agent():
         5. SAAT PERCAKAPAN HAMPIR SELESAI, tawarkan untuk membuatkan Laporan PDF. Jika ia mau, panggil alat `generate_pdf_and_log_data`.
         6. Berbicara dengan bahasa Indonesia yang santai dan empatik.
         """
-        
-        # Menggunakan model Pro agar logika pemanggilan Tools (Function Calling) sangat cerdas
+
+        # 3. Instantiate using the exact model string returned by Google
         model = genai.GenerativeModel(
-            model_name='gemini-1.0-pro',
+            model_name=chosen_model,
             tools=[search_major_with_rag, search_internet_job_prospects, generate_pdf_and_log_data],
             system_instruction=system_instruction
         )
         return model
+
     except Exception as e:
         st.error(f"Error Konfigurasi API: {e}")
         return None
-
+        
 # ==================== 5. ANTARMUKA CHAT & XAI (EXPLAINABLE AI) ====================
 
 st.markdown('<h1 class="main-header">🤖 Autonomous Career Agent (RAG + Web Tools)</h1>', unsafe_allow_html=True)
