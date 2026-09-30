@@ -1,378 +1,267 @@
 import streamlit as st
-import numpy as np
+import google.generativeai as genai
 import json
 import os
-import threading
-import hashlib
-import requests
 import sqlite3
-import re
-import google.generativeai as genai
-import plotly.graph_objects as go
+import base64
+from datetime import datetime
 from fpdf import FPDF
-from fpdf.enums import XPos, YPos
-from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from duckduckgo_search import DDGS
 
-# 0. KONFIGURASI AWAL
-
-st.set_page_config(page_title="Autonomous Career AI", layout="wide")
+# ==================== 1. KONFIGURASI SISTEM ====================
+st.set_page_config(page_title="Autonomous Career Agent (RAG)", page_icon="🤖", layout="wide")
 
 st.markdown("""
 <style>
-    .main-header { font-size: 2.5rem; color: #1f77b4; text-align: center; font-weight: 800; margin-bottom: 20px; }
-    .step-card { background-color: #ffffff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 25px; border-top: 5px solid #1f77b4; }
-    .reasoning-text { font-style: italic; color: #444; background-color: #f0f7ff; padding: 20px; border-radius: 8px; border-left: 5px solid #1f77b4; line-height: 1.6; }
+    .main-header { font-size: 2.2rem; color: #1f77b4; text-align: center; font-weight: 800; }
+    .xai-box { border-left: 4px solid #ff9800; background-color: #fff3e0; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.85em; margin-bottom: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
-# 1. ENGINE (AI)
+DB_JSON_FILE = 'agent_knowledge_base.json'
+DB_SQLITE_FILE = 'skripsi_logs.db'
 
-@st.cache_resource
-def load_nlp_model():
-    return SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+# ==================== 2. INITIALIZATION (DATABASE & RAG) ====================
 
-nlp_model = load_nlp_model()
-
-class GeminiCareerAnalyst:
-    def __init__(self):
-        try:
-            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
-        except Exception as e:
-            st.warning(f"Gemini tidak tersedia: {e}")
-            self.model = None
-
-    def generate_personalized_insight(self, user_data, major_name, match_score):
-        if not self.model:
-            return "Analisis AI tidak tersedia. Periksa API Key."
-        
-        prompt = f"""
-        Anda adalah Konselor Karir Profesional. Berikan analisis mendalam mengapa jurusan {major_name} 
-        sangat cocok untuk siswa bernama {user_data.get('name')} berdasarkan profil berikut:
-        - Jalur Sekolah: {user_data.get('stream')}
-        - Nilai Rapor: {user_data.get('academic_scores')}
-        - Esai Motivasi: "{user_data.get('essay')}"
-        
-        Instruksi:
-        1. Gunakan Bahasa Indonesia yang akademis namun memotivasi.
-        2. Hubungkan secara logis antara nilai mata pelajaran spesifik dengan tuntutan jurusan {major_name}.
-        3. Jadikan "Esai Motivasi" sebagai landasan utama penentu minat/bakat.
-        4. Berikan proyeksi karir masa depan yang spesifik.
-        5. WAJIB TAMBAHKAN: Bagian khusus tentang "Cara Mengembangkan Diri" jika diterima di jurusan ini (seperti skill yang harus diasah atau sertifikasi relevan).
-        6. Maksimal 4 paragraf. Jangan tampilkan angka skor kecocokan dalam teks.
-        7. PENTING: Gunakan teks biasa (plain text). HINDARI penggunaan bullet points khusus, tanda kutip miring (smart quotes), atau simbol non-standar agar laporan dapat dicetak ke PDF dengan aman. Gunakan tanda strip (-) untuk daftar.
-        """
-        try:
-            response = self.model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            return f"Gagal terhubung ke AI. Detail Error: {str(e)}"
-
-class AdvancedCareerAI:
-    def __init__(self, kb):
-        self.kb = kb
-
-    def _normalize(self, val, max_v=100):
-        return min(max((val or 0) / max_v, 0), 1)
-
-    def construct_user_radar_vector(self, user_data):
-        sc = user_data.get('academic_scores', {})
-        strm = user_data.get('stream', 'MIPA (IPA)')
-
-        mw = sc.get('Math_W', 0)
-        ind = sc.get('Indo', 0)
-        ing = sc.get('Inggris', 0)
-        
-        if strm == "MIPA (IPA)":
-            s_logika = (mw * 0.3) + (sc.get('Math_M', 0) * 0.4) + (sc.get('Fisika', 0) * 0.3)
-            s_sosial = (ind + ing) / 2.0
-            s_sains = (sc.get('Fisika', 0) + sc.get('Kimia', 0) + sc.get('Biologi', 0)) / 3.0
-            s_verbal = (ind + ing) / 2.0
-            s_seni = (ind + ing) / 2.0 * 0.8
-        elif strm == "IPS":
-            s_logika = (mw * 0.5) + (sc.get('Ekonomi', 0) * 0.5)
-            s_sosial = (sc.get('Sosiologi', 0) * 0.4) + (sc.get('Sejarah', 0) * 0.3) + (sc.get('Geografi', 0) * 0.3)
-            s_sains = (sc.get('Geografi', 0) * 0.7) + (mw * 0.3)
-            s_verbal = (ind + ing) / 2.0
-            s_seni = (sc.get('Sejarah', 0) * 0.5) + (ind * 0.5)
-        else:  # BAHASA
-            s_logika = mw * 0.9
-            s_sosial = (sc.get('Antropologi', 0) * 0.6) + (ind * 0.4)
-            s_sains = mw * 0.7
-            s_verbal = (ind * 0.3) + (ing * 0.3) + (sc.get('Sastra', 0) * 0.2) + (sc.get('Asing', 0) * 0.2)
-            s_seni = (sc.get('Sastra', 0) * 0.7) + (ind * 0.3)
-
-        v_math = self._normalize(s_logika)
-        v_verbal = self._normalize(s_verbal)
-        v_social = self._normalize(s_sosial)
-        v_art = self._normalize(s_seni)
-        v_science = self._normalize(s_sains)
-
-        return np.array([v_math, v_verbal, v_social, v_art, v_science])
-
-    def generate_recommendations(self, user_data):
-        user_radar = self.construct_user_radar_vector(user_data).reshape(1, -1)
-        user_essay = nlp_model.encode(user_data.get('essay', '')).reshape(1, -1)
-
-        majors = self.kb.get_all_majors()
-        results = []
-        for name, data in majors.items():
-            sim_acad = cosine_similarity(user_radar, np.array(data['radar_vector']).reshape(1, -1))[0][0]
-            sim_sem = cosine_similarity(user_essay, data['semantic_vector'].reshape(1, -1))[0][0]
+def init_databases():
+    # A. JSON Knowledge Base (Untuk RAG)
+    if not os.path.exists(DB_JSON_FILE):
+        default_db = [
+            {"jurusan": "Teknik Informatika", "riasec": "IRC", "deskripsi": "Fokus pada komputasi, algoritma, kecerdasan buatan, dan pemrograman perangkat lunak. Cocok untuk yang suka memecahkan teka-teki logika."},
+            {"jurusan": "Psikologi", "riasec": "SIA", "deskripsi": "Mempelajari perilaku manusia dan proses mental. Memerlukan empati tinggi dan kemampuan observasi analitis."},
+            {"jurusan": "Manajemen Bisnis", "riasec": "EAS", "deskripsi": "Pengelolaan organisasi, kepemimpinan, dan finansial. Cocok untuk yang berjiwa wirausaha dan suka bernegosiasi."},
+            {"jurusan": "Ilmu Komunikasi", "riasec": "SAE", "deskripsi": "Fokus pada jurnalistik, public relations, dan media kreatif. Membutuhkan kemampuan verbal dan sosialisasi yang baik."},
+            {"jurusan": "Kedokteran", "riasec": "ISA", "deskripsi": "Ilmu medis, kesehatan, dan penyembuhan pasien. Sangat butuh ketelitian sains dan keinginan membantu orang lain."},
+            {"jurusan": "Desain Komunikasi Visual", "riasec": "AES", "deskripsi": "Seni terapan, desain grafis, dan kreativitas visual. Menggabungkan teknologi dan rasa estetika tinggi."}
+        ]
+        with open(DB_JSON_FILE, 'w') as f:
+            json.dump(default_db, f, indent=4)
             
-            score = (sim_acad * 0.5 + sim_sem * 0.5) * 100
-            results.append({
-                'major': name,
-                'score': round(score, 1),
-                'vector': data['radar_vector'],
-                'user_vector': user_radar[0].tolist()
-            })
-        return sorted(results, key=lambda x: x['score'], reverse=True)[:5]
+    # B. SQLite Database (Untuk Logging/Skripsi)
+    conn = sqlite3.connect(DB_SQLITE_FILE)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS chat_logs 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, tanggal TEXT, nama_siswa TEXT, riasec_code TEXT, jurusan_rekomendasi TEXT, ringkasan_chat TEXT)''')
+    conn.commit()
+    conn.close()
 
-# 2. DATABASE & SCRAPER
+init_databases()
 
-_db_lock = threading.Lock()
+# ==================== 3. TOOLS UNTUK AUTONOMOUS AGENT ====================
 
-def _fetch_wikipedia_sync(majors_list):
-    results = []
-    for m in majors_list:
-        url = f"https://id.wikipedia.org/api/rest_v1/page/summary/{m.replace(' ', '_')}"
-        try:
-            r = requests.get(url, timeout=8)
-            if r.status_code == 200:
-                desc = r.json().get('extract', f"Program studi {m}")
-            else:
-                desc = f"Studi {m}"
-        except Exception:
-            desc = f"Studi {m}"
-        results.append((m, desc))
-    return results
-
-class SQLiteKnowledgeBase:
-    def __init__(self):
-        self.conn = sqlite3.connect('knowledge_base.db', check_same_thread=False)
-        self.conn.execute(
-            'CREATE TABLE IF NOT EXISTS majors '
-            '(major_name TEXT PRIMARY KEY, description TEXT, radar_vector TEXT, semantic_vector TEXT)'
-        )
+def search_major_with_rag(riasec_code: str, student_story: str) -> str:
+    """
+    ALAT 1 (RAG DATABASE SEARCH): Gunakan alat ini untuk mencari rekomendasi jurusan di database. 
+    Masukkan kode RIASEC (misal: 'IRE') dan ringkasan cerita/minat siswa (misal: 'suka main komputer').
+    """
+    try:
+        with open(DB_JSON_FILE, 'r') as f:
+            db = json.load(f)
+            
+        # Filter 1: Cek irisan huruf RIASEC
+        filtered_db = []
+        user_set = set(riasec_code.upper())
+        for item in db:
+            if len(user_set.intersection(set(item['riasec']))) >= 1:
+                filtered_db.append(item)
+                
+        if not filtered_db:
+            filtered_db = db # Fallback jika tidak ada yang cocok sama sekali
+            
+        # Filter 2: RAG (Semantic Search menggunakan TF-IDF & Cosine Similarity)
+        # Mengukur kedekatan cerita siswa dengan deskripsi kurikulum jurusan
+        corpus = [item['deskripsi'] for item in filtered_db]
+        corpus.append(student_story) # Masukkan cerita siswa di akhir untuk dibandingkan
         
-        if self.conn.execute("SELECT COUNT(*) FROM majors").fetchone()[0] == 0:
-            self.process_and_save_new_majors([
-                'Matematika', 'Teknik Informatika', 'Psikologi',
-                'Manajemen', 'Arkeologi', 'Ilmu Komunikasi',
-                'Ilmu Ekonomi', 'Akuntansi'
-            ])
-
-    def save_major(self, name, desc, radar_vec, semantic_vec):
-        with _db_lock:
-            self.conn.execute(
-                'INSERT OR REPLACE INTO majors VALUES (?, ?, ?, ?)',
-                (name, desc, json.dumps(radar_vec), json.dumps(semantic_vec.tolist()))
-            )
-            self.conn.commit()
-
-    def get_all_majors(self):
-        res = {}
-        with _db_lock:
-            rows = self.conn.execute("SELECT * FROM majors").fetchall()
-        for r in rows:
-            res[r[0]] = {
-                'description': r[1],
-                'radar_vector': json.loads(r[2]),
-                'semantic_vector': np.array(json.loads(r[3]))
-            }
-        return res
-
-    def process_and_save_new_majors(self, majors_list):
-        data = _fetch_wikipedia_sync(majors_list)
-        for m, desc in data:
-            # MODIFIKASI: Menggunakan pembobotan puncak (0.9) dan lembah (0.35) agar grafik normal
-            v = [0.35, 0.35, 0.35, 0.35, 0.35]
-            d_lower = (m + " " + desc).lower()
+        vectorizer = TfidfVectorizer()
+        tfidf_matrix = vectorizer.fit_transform(corpus)
+        
+        # Hitung kemiripan cerita siswa (index terakhir) dengan semua jurusan
+        cosine_sim = cosine_similarity(tfidf_matrix[-1], tfidf_matrix[:-1])[0]
+        
+        # Urutkan berdasarkan skor tertinggi
+        ranked_indices = cosine_sim.argsort()[::-1]
+        
+        hasil = ["HASIL PENCARIAN DATABASE (Diurutkan dari paling relevan):"]
+        for idx in ranked_indices[:3]: # Ambil Top 3
+            item = filtered_db[idx]
+            skor = round(cosine_sim[idx] * 100, 1)
+            hasil.append(f"- {item['jurusan']} (Kode: {item['riasec']}, Skor Relevansi Semantik: {skor}%): {item['deskripsi']}")
             
-            if any(x in d_lower for x in ['hitung', 'logika', 'matematika', 'teknik', 'komputer', 'sistem', 'analisis', 'angka', 'ekonomi', 'akuntansi', 'keuangan', 'bisnis', 'manajemen', 'data']): v[0] = 0.90
-            if any(x in d_lower for x in ['bahasa', 'komunikasi', 'sastra', 'tulis', 'informasi', 'jurnalistik', 'media', 'hubungan', 'publik']): v[1] = 0.90
-            if any(x in d_lower for x in ['sosial', 'masyarakat', 'manusia', 'hukum', 'psikologi', 'mental', 'perilaku', 'jiwa', 'kebijakan', 'kognitif']): v[2] = 0.90
-            if any(x in d_lower for x in ['seni', 'kreatif', 'desain', 'budaya', 'visual', 'karya', 'arsitektur', 'estetika']): v[3] = 0.90
-            if any(x in d_lower for x in ['fisika', 'biologi', 'alam', 'medis', 'kimia', 'kesehatan', 'lingkungan', 'kedokteran', 'farmasi', 'molekuler', 'genetik', 'organisme', 'mikroba', 'hayati']): v[4] = 0.90
-            
-            self.save_major(m, desc, v, nlp_model.encode(desc))
+        return "\n".join(hasil)
+    except Exception as e:
+        return f"Gagal mencari database: {str(e)}"
 
-@st.cache_resource
-def get_kb():
-    return SQLiteKnowledgeBase()
+def search_internet_job_prospects(query: str) -> str:
+    """
+    ALAT 2 (WEB SEARCH): Gunakan alat ini JIKA pengguna bertanya tentang prospek kerja, gaji, atau info tren karir masa depan yang butuh data internet real-time.
+    """
+    try:
+        results = DDGS().text(query, max_results=3)
+        if not results:
+            return "Tidak ditemukan informasi di internet."
+        
+        rangkuman = []
+        for r in results:
+            rangkuman.append(f"Sumber: {r.get('title')}\nInfo: {r.get('body')}\n")
+        return "\n".join(rangkuman)
+    except Exception as e:
+        return "Gagal mengakses internet saat ini."
 
-# 3. UI PENGGUNA & PEMBUATAN PDF
+def generate_pdf_and_log_data(nama_siswa: str, riasec_code: str, nama_jurusan: str, alasan_rekomendasi: str) -> str:
+    """
+    ALAT 3 (PDF & LOGGING): PANGGIL ALAT INI DI AKHIR PERCAKAPAN saat kamu sudah yakin memberikan rekomendasi final.
+    Fungsi ini akan menyimpan data ke database SQLite untuk penelitian, dan membuat file PDF untuk didownload pengguna.
+    """
+    try:
+        # 1. Simpan ke SQLite Logging (Sangat berguna untuk Bab 4 Skripsi)
+        conn = sqlite3.connect(DB_SQLITE_FILE)
+        c = conn.cursor()
+        tgl = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        c.execute("INSERT INTO chat_logs (tanggal, nama_siswa, riasec_code, jurusan_rekomendasi, ringkasan_chat) VALUES (?, ?, ?, ?, ?)",
+                  (tgl, nama_siswa, riasec_code, nama_jurusan, alasan_rekomendasi))
+        conn.commit()
+        conn.close()
 
-class PDFReport(FPDF):
-    def header(self):
-        self.set_font('Helvetica', 'B', 16)
-        self.cell(0, 10, 'LAPORAN REKOMENDASI KARIR AI', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
-        self.ln(10)
-
-def sanitize_text_for_pdf(text):
-    text = re.sub(r'[“”]', '"', text)
-    text = re.sub(r'[‘’]', "'", text)
-    text = re.sub(r'[—–]', '-', text)
-    text = re.sub(r'[•·]', '-', text)
-    text = text.encode('latin-1', 'replace').decode('latin-1')
-    return text
-
-def render_step_1():
-    st.markdown('<div class="step-card"><h3>Langkah 1: Identitas</h3>', unsafe_allow_html=True)
-    with st.form("s1"):
-        n = st.text_input("Nama Lengkap")
-        s = st.selectbox("Peminatan Sekolah", ["MIPA (IPA)", "IPS", "Bahasa"])
-        if st.form_submit_button("Lanjut"):
-            if n:
-                st.session_state.user_data.update({'name': n, 'stream': s})
-                st.session_state.current_step = 1
-                st.rerun()
-            else:
-                st.error("Mohon isi nama lengkap Anda.")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-def render_step_2():
-    st.markdown('<div class="step-card"><h3>Langkah 2: Nilai Rapor</h3>', unsafe_allow_html=True)
-    strm = st.session_state.user_data.get('stream')
-    with st.form("s2"):
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            mw = st.number_input("Matematika (W)", 0, 100, 80)
-            ind = st.number_input("B. Indo", 0, 100, 80)
-        with c2:
-            ing = st.number_input("B. Inggris", 0, 100, 80)
-
-        if strm == "MIPA (IPA)":
-            with c2: mm = st.number_input("Matematika (M)", 0, 100, 80)
-            with c3:
-                f = st.number_input("Fisika", 0, 100, 80)
-                k = st.number_input("Kimia", 0, 100, 80)
-                b = st.number_input("Biologi", 0, 100, 80)
-            sc = {'Math_W': mw, 'Indo': ind, 'Inggris': ing, 'Math_M': mm, 'Fisika': f, 'Kimia': k, 'Biologi': b}
-        elif strm == "IPS":
-            with c2: ek = st.number_input("Ekonomi", 0, 100, 80)
-            with c3:
-                so = st.number_input("Sosiologi", 0, 100, 80)
-                ge = st.number_input("Geografi", 0, 100, 80)
-                sj = st.number_input("Sejarah", 0, 100, 80)
-            sc = {'Math_W': mw, 'Indo': ind, 'Inggris': ing, 'Ekonomi': ek, 'Sosiologi': so, 'Geografi': ge, 'Sejarah': sj}
-        else:  # BAHASA
-            with c2: sas = st.number_input("Sastra Indo", 0, 100, 80)
-            with c3:
-                ant = st.number_input("Antropologi", 0, 100, 80)
-                asg = st.number_input("B. Asing", 0, 100, 80)
-            sc = {'Math_W': mw, 'Indo': ind, 'Inggris': ing, 'Sastra': sas, 'Antropologi': ant, 'Asing': asg}
-
-        if st.form_submit_button("Lanjut"):
-            st.session_state.user_data['academic_scores'] = sc
-            st.session_state.current_step = 2
-            st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-def render_step_3():
-    st.markdown('<div class="step-card"><h3>Langkah 3: Esai Motivasi & Minat</h3>', unsafe_allow_html=True)
-    st.info("Ceritakan hobi, pelajaran yang paling Anda nikmati, dan bayangan pekerjaan Anda di masa depan. AI akan menganalisis minat Anda dari cerita ini.")
-    with st.form("s3"):
-        es = st.text_area("Ceritakan di sini...", height=200)
-        if st.form_submit_button("Analisis Hasil"):
-            if len(es.strip().split()) < 10:
-                st.error("Esai terlalu pendek. Minimal 10 kata.")
-            else:
-                st.session_state.user_data['essay'] = es
-                st.session_state.current_step = 3
-                st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-def render_results():
-    st.markdown('<h1 class="main-header">Hasil Rekomendasi Karir</h1>', unsafe_allow_html=True)
-    kb = get_kb()
-    ga = GeminiCareerAnalyst()
-    
-    user_essay = st.session_state.user_data.get('essay', '')
-    if user_essay and ga.model:
-        essay_hash = hashlib.md5(user_essay.encode()).hexdigest()[:8]
-        if st.session_state.get('last_scraped_essay') != essay_hash:
-            with st.spinner("🤖 AI sedang menganalisis esai dan mencari jurusan yang cocok"):
-                try:
-                    prompt_discovery = f"Baca esai ini: '{user_essay}'. Sebutkan 2 nama prodi S1 di Indonesia yang sangat spesifik dan cocok. HANYA tulis nama jurusannya, pisahkan dengan koma."
-                    resp = ga.model.generate_content(prompt_discovery)
-                    suggested_majors = [m.strip().title() for m in resp.text.replace('.', '').split(',')]
-                    
-                    existing_majors = kb.get_all_majors().keys()
-                    new_majors = [m for m in suggested_majors if m not in existing_majors and len(m) > 4]
-                    if new_majors:
-                        st.toast(f"🔍 Menemukan minat unik! Mempelajari: {', '.join(new_majors)}...")
-                        kb.process_and_save_new_majors(new_majors)
-                    st.session_state['last_scraped_essay'] = essay_hash
-                except Exception: pass
-
-    ai = AdvancedCareerAI(kb)
-    recs = ai.generate_recommendations(st.session_state.user_data)
-    top_3 = recs[:3]
-
-    fig = go.Figure()
-    lbls = ['Logika', 'Verbal', 'Sosial', 'Seni', 'Sains']
-    
-    fig.add_trace(go.Scatterpolar(
-        r=top_3[0]['user_vector'], theta=lbls, fill='toself', name='Kapasitas Rapor Anda',
-        line=dict(color='#1f77b4', width=2), fillcolor='rgba(31, 119, 180, 0.4)'
-    ))
-    fig.add_trace(go.Scatterpolar(
-        r=top_3[0]['vector'], theta=lbls, fill='toself', name=f"Tuntutan {top_3[0]['major']}",
-        line=dict(color='#ff7f0e', width=2), fillcolor='rgba(255, 127, 14, 0.4)'
-    ))
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=True)
-    st.plotly_chart(fig, use_container_width=True)
-
-    tabs = st.tabs([f"{i+1}. {t['major']}" for i, t in enumerate(top_3)])
-
-    user_hash = hashlib.md5(json.dumps(st.session_state.user_data, sort_keys=True, default=str).encode()).hexdigest()[:8]
-
-    for i, tab in enumerate(tabs):
-        with tab:
-            st.subheader(f"Skor Kecocokan: {top_3[i]['score']}%")
-            key = f"insight_{i}_{user_hash}"
-            if key not in st.session_state:
-                with st.spinner("AI sedang menyusun strategi pengembangan diri..."):
-                    st.session_state[key] = ga.generate_personalized_insight(st.session_state.user_data, top_3[i]['major'], top_3[i]['score'])
-            st.markdown(f'<div class="reasoning-text">{st.session_state[key]}</div>', unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    pdf = PDFReport()
-    pdf.add_page()
-    pdf.set_font("Helvetica", size=12)
-    pdf.cell(0, 10, f"Nama: {st.session_state.user_data.get('name')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.cell(0, 10, f"Jurusan SMA: {st.session_state.user_data.get('stream')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.ln(5)
-
-    for i, r in enumerate(top_3):
-        pdf.set_font("Helvetica", 'B', 14)
-        pdf.cell(0, 10, f"{i+1}. {r['major']} ({r['score']}%)", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.set_font("Helvetica", size=11)
-        raw_txt = st.session_state.get(f"insight_{i}_{user_hash}", "")
-        safe_txt = sanitize_text_for_pdf(raw_txt)
-        try: pdf.multi_cell(0, 7, safe_txt)
-        except Exception as e: pdf.multi_cell(0, 7, "[Error: Karakter tidak didukung]")
+        # 2. Buat File PDF
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(0, 10, "LAPORAN KONSULTASI KARIR AI", 0, 1, 'C')
+        pdf.ln(10)
+        
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, f"Nama: {nama_siswa.encode('latin-1', 'replace').decode('latin-1')}", ln=1)
+        pdf.cell(0, 10, f"Kode Kepribadian Holland (RIASEC): {riasec_code}", ln=1)
+        pdf.cell(0, 10, f"Rekomendasi Utama: {nama_jurusan.encode('latin-1', 'replace').decode('latin-1')}", ln=1)
         pdf.ln(5)
+        
+        pdf.set_font("Arial", '', 11)
+        pdf.multi_cell(0, 7, alasan_rekomendasi.encode('latin-1', 'replace').decode('latin-1'))
+        
+        # Simpan ke Session State untuk ditampilkan sebagai tombol download di UI
+        st.session_state['pdf_data'] = pdf.output(dest='S').encode('latin-1', 'replace')
+        st.session_state['pdf_filename'] = f"Hasil_Karir_{nama_siswa.replace(' ', '_')}.pdf"
+        
+        return "SUKSES: Data berhasil dicatat ke database penelitian dan PDF telah disiapkan untuk diunduh oleh pengguna."
+    except Exception as e:
+        return f"GAGAL membuat PDF atau menyimpan ke database: {str(e)}"
 
-    pdf_bytes = bytes(pdf.output())
-    st.download_button(label="📥 Unduh Hasil PDF", data=pdf_bytes, file_name=f"Rekomendasi_{st.session_state.user_data.get('name')}.pdf", mime="application/pdf")
+# ==================== 4. INISIALISASI AUTONOMOUS AGENT ====================
 
-    if st.button("Ulangi Sesi"):
-        st.session_state.clear()
-        st.rerun()
+def get_agent():
+    try:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        
+        system_instruction = """
+        Kamu adalah Autonomous Career Agent. Kamu memiliki 3 ALAT (Tools):
+        1. search_major_with_rag: Untuk mencari jurusan.
+        2. search_internet_job_prospects: Untuk mencari info gaji/prospek kerja di internet.
+        3. generate_pdf_and_log_data: Untuk membuat laporan PDF dan menyimpan data ke database.
 
-# 4. MAIN
+        Tugasmu:
+        1. Sapa pengguna, tanyakan namanya, lalu gali hobi dan minatnya.
+        2. Analisis Kode RIASEC (3 huruf dominan).
+        3. Panggil alat `search_major_with_rag` untuk mencari jurusan.
+        4. Jika pengguna bertanya soal prospek kerja, panggil `search_internet_job_prospects`.
+        5. SAAT PERCAKAPAN HAMPIR SELESAI, tawarkan untuk membuatkan Laporan PDF. Jika ia mau, panggil alat `generate_pdf_and_log_data`.
+        6. Berbicara dengan bahasa Indonesia yang santai dan empatik.
+        """
+        
+        # Menggunakan model Pro agar logika pemanggilan Tools (Function Calling) sangat cerdas
+        model = genai.GenerativeModel(
+            model_name='gemini-1.5-pro',
+            tools=[search_major_with_rag, search_internet_job_prospects, generate_pdf_and_log_data],
+            system_instruction=system_instruction
+        )
+        return model
+    except Exception as e:
+        st.error(f"Error Konfigurasi API: {e}")
+        return None
 
-def main():
-    st.session_state.setdefault('user_data', {})
-    st.session_state.setdefault('current_step', 0)
-    st.progress(st.session_state.current_step / 3)
-    steps = [render_step_1, render_step_2, render_step_3, render_results]
-    steps[st.session_state.current_step]()
+# ==================== 5. ANTARMUKA CHAT & XAI (EXPLAINABLE AI) ====================
 
-if __name__ == "__main__":
-    main()
+st.markdown('<h1 class="main-header">🤖 Autonomous Career Agent (RAG + Web Tools)</h1>', unsafe_allow_html=True)
+
+if "messages" not in st.session_state:
+    st.session_state.messages = [{"role": "model", "parts": ["Halo! Saya AI Konselor Karir otonom. Boleh tahu siapa namamu dan apa aktivitas yang paling kamu nikmati akhir-akhir ini?"]}]
+
+if "chat_session" not in st.session_state:
+    model = get_agent()
+    if model:
+        st.session_state.chat_session = model.start_chat(enable_automatic_function_calling=True)
+
+# Tampilkan riwayat obrolan (Teks saja)
+for msg in st.session_state.messages:
+    if "parts" in msg:
+        with st.chat_message("ai" if msg["role"] == "model" else "human"):
+            st.write(msg["parts"][0])
+
+user_input = st.chat_input("Ketik di sini...")
+
+if user_input:
+    with st.chat_message("human"):
+        st.write(user_input)
+    st.session_state.messages.append({"role": "human", "parts": [user_input]})
+    
+    with st.chat_message("ai"):
+        with st.spinner("🤖 Agen sedang berpikir, menganalisis, dan memanggil alat jika diperlukan..."):
+            try:
+                # Rekam panjang history sebelum dikirim (Untuk melacak Chain of Thought)
+                old_history_len = len(st.session_state.chat_session.history)
+                
+                # Kirim pesan (Proses otonom berjalan di sini)
+                response = st.session_state.chat_session.send_message(user_input)
+                
+                # ==========================================
+                # FITUR XAI (Explainable AI / Transparansi Pikiran)
+                # ==========================================
+                new_history = st.session_state.chat_session.history[old_history_len:]
+                tools_used = []
+                for h_msg in new_history:
+                    for part in h_msg.parts:
+                        # Mengecek apakah agen memanggil fungsi Python di balik layar
+                        if hasattr(part, 'function_call') and part.function_call:
+                            fn_name = part.function_call.name
+                            args = dict(part.function_call.args)
+                            tools_used.append(f"🔧 <b>Agent Action:</b> Memanggil <code>{fn_name}</code> dengan argumen {args}")
+                
+                # Menampilkan proses berpikir AI jika ada alat yang dipanggil
+                if tools_used:
+                    with st.expander("🧠 Lihat Proses Berpikir AI (Chain-of-Thought)"):
+                        for t in tools_used:
+                            st.markdown(f'<div class="xai-box">{t}</div>', unsafe_allow_html=True)
+                
+                # ==========================================
+                
+                # Tampilkan balasan teks
+                st.write(response.text)
+                st.session_state.messages.append({"role": "model", "parts": [response.text]})
+                
+            except Exception as e:
+                st.error(f"Terjadi kesalahan agen: {str(e)}")
+
+# Menampilkan tombol download PDF jika agen sudah mengeksekusi alat generate_pdf
+if 'pdf_data' in st.session_state:
+    st.markdown("---")
+    st.success("📄 Agen telah membuat laporan PDF Anda!")
+    st.download_button(
+        label="📥 Download Laporan Karir (PDF)",
+        data=st.session_state['pdf_data'],
+        file_name=st.session_state['pdf_filename'],
+        mime="application/pdf"
+    )
+    
+# Fitur Admin Tersembunyi (Untuk Skripsi Bab 4)
+with st.sidebar:
+    st.markdown("### ⚙️ Admin & Riset")
+    if st.checkbox("Buka Panel Peneliti"):
+        st.write("Panel ini digunakan untuk melihat data eksperimen.")
+        if os.path.exists(DB_SQLITE_FILE):
+            conn = sqlite3.connect(DB_SQLITE_FILE)
+            import pandas as pd
+            df = pd.read_sql_query("SELECT * FROM chat_logs", conn)
+            st.dataframe(df)
+            conn.close()
