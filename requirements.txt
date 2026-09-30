@@ -1,9 +1,5 @@
-streamlit
-numpy
-fpdf2
-plotly
-scikit-learn
-sentence-transformers
-aiohttp
-beautifulsoup4
-google-generativeai
+streamlit==1.32.0
+google-generativeai==0.4.1
+fpdf==1.7.2
+scikit-learn==1.4.1.post1
+duckduckgo-search==5.2.1
