@@ -172,7 +172,7 @@ def get_agent():
         
         # Menggunakan model Pro agar logika pemanggilan Tools (Function Calling) sangat cerdas
         model = genai.GenerativeModel(
-            model_name='gemini-1.5-pro',
+            model_name='gemini-1.5-flash',
             tools=[search_major_with_rag, search_internet_job_prospects, generate_pdf_and_log_data],
             system_instruction=system_instruction
         )
