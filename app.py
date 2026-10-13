@@ -11,7 +11,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from duckduckgo_search import DDGS
 
 # ==================== 1. KONFIGURASI SISTEM ====================
-st.set_page_config(page_title="Autonomous Career Agent (RAG)", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Autonomous Career Agent (RAG)", layout="wide")
 
 st.markdown("""
 <style>
