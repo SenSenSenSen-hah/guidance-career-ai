@@ -215,10 +215,10 @@ def get_agent():
         
 # ==================== 5. ANTARMUKA CHAT & XAI (EXPLAINABLE AI) ====================
 
-st.markdown('<h1 class="main-header">🤖 Autonomous Career Agent (RAG + Web Tools)</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-header">Autonomous Career Agent (RAG + Web Tools)</h1>', unsafe_allow_html=True)
 
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "model", "parts": ["Halo! Saya AI Konselor Karir otonom. Boleh tahu siapa namamu dan apa aktivitas yang paling kamu nikmati akhir-akhir ini?"]}]
+    st.session_state.messages = [{"role": "model", "parts": ["Halo! Saya AI Konselor Karir. Boleh tahu siapa namamu dan apa aktivitas yang paling kamu nikmati akhir-akhir ini?"]}]
 
 if "chat_session" not in st.session_state:
     model = get_agent()
