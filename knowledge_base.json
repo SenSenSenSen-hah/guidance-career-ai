@@ -1,0 +1,252 @@
+[
+  {
+    "nama_jurusan": "Ilmu Komputer / Teknik Informatika",
+    "kode_riasec": "IRC",
+    "deskripsi": "Mempelajari algoritma, pemrograman, rekayasa perangkat lunak, dan pengembangan sistem kecerdasan buatan."
+  },
+  {
+    "nama_jurusan": "Sistem Informasi",
+    "kode_riasec": "CEI",
+    "deskripsi": "Menjembatani ilmu komputer dengan manajemen bisnis untuk merancang sistem integrasi data perusahaan."
+  },
+  {
+    "nama_jurusan": "Teknik Sipil",
+    "kode_riasec": "RIE",
+    "deskripsi": "Fokus pada perancangan, pembangunan, dan pemeliharaan infrastruktur seperti jembatan, jalan, dan gedung."
+  },
+  {
+    "nama_jurusan": "Arsitektur",
+    "kode_riasec": "ARI",
+    "deskripsi": "Menggabungkan teknik dan seni untuk merancang tata letak dan estetika bangunan fungsional."
+  },
+  {
+    "nama_jurusan": "Teknik Mesin",
+    "kode_riasec": "RIC",
+    "deskripsi": "Mempelajari prinsip fisika dan matematika untuk analisis, desain, dan manufaktur sistem mekanik."
+  },
+  {
+    "nama_jurusan": "Teknik Elektro",
+    "kode_riasec": "RIE",
+    "deskripsi": "Berfokus pada aplikasi kelistrikan, elektronika, dan elektromagnetisme dalam berbagai teknologi modern."
+  },
+  {
+    "nama_jurusan": "Teknik Industri",
+    "kode_riasec": "EIR",
+    "deskripsi": "Mengoptimalkan proses, sistem, atau organisasi yang kompleks dengan mengintegrasikan manusia, mesin, dan informasi."
+  },
+  {
+    "nama_jurusan": "Kedokteran",
+    "kode_riasec": "ISA",
+    "deskripsi": "Mempelajari anatomi, diagnosis, pencegahan, dan pengobatan penyakit untuk menjaga kesehatan manusia."
+  },
+  {
+    "nama_jurusan": "Kedokteran Gigi",
+    "kode_riasec": "IRS",
+    "deskripsi": "Fokus pada pencegahan dan perawatan penyakit serta gangguan pada rongga mulut dan gigi."
+  },
+  {
+    "nama_jurusan": "Farmasi",
+    "kode_riasec": "ISA",
+    "deskripsi": "Mempelajari formulasi, pembuatan, dan interaksi obat-obatan terhadap tubuh manusia."
+  },
+  {
+    "nama_jurusan": "Keperawatan",
+    "kode_riasec": "SIA",
+    "deskripsi": "Berfokus pada perawatan pasien, keluarga, dan masyarakat untuk mencapai atau mempertahankan kesehatan optimal."
+  },
+  {
+    "nama_jurusan": "Ilmu Gizi",
+    "kode_riasec": "SIE",
+    "deskripsi": "Mempelajari hubungan antara makanan, nutrisi, dan kesehatan serta penerapannya dalam diet klinis."
+  },
+  {
+    "nama_jurusan": "Kesehatan Masyarakat",
+    "kode_riasec": "SIE",
+    "deskripsi": "Berfokus pada pencegahan penyakit dan promosi kesehatan di tingkat populasi atau komunitas."
+  },
+  {
+    "nama_jurusan": "Matematika",
+    "kode_riasec": "ICR",
+    "deskripsi": "Mempelajari logika, struktur, ruang, dan kuantitas untuk memecahkan masalah teoretis maupun terapan."
+  },
+  {
+    "nama_jurusan": "Statistika",
+    "kode_riasec": "ICR",
+    "deskripsi": "Berfokus pada pengumpulan, analisis, interpretasi, dan penyajian data untuk pengambilan keputusan."
+  },
+  {
+    "nama_jurusan": "Aktuaria",
+    "kode_riasec": "CIE",
+    "deskripsi": "Menerapkan matematika dan statistika untuk menilai risiko dalam industri asuransi dan keuangan."
+  },
+  {
+    "nama_jurusan": "Biologi",
+    "kode_riasec": "IRA",
+    "deskripsi": "Mempelajari kehidupan dan organisme hidup, termasuk struktur, fungsi, pertumbuhan, dan evolusinya."
+  },
+  {
+    "nama_jurusan": "Fisika",
+    "kode_riasec": "IRE",
+    "deskripsi": "Mempelajari sifat materi, energi, ruang, dan waktu, serta interaksi fundamental di alam semesta."
+  },
+  {
+    "nama_jurusan": "Kimia",
+    "kode_riasec": "IRE",
+    "deskripsi": "Mempelajari komposisi, struktur, sifat, dan perubahan materi pada tingkat atomik dan molekuler."
+  },
+  {
+    "nama_jurusan": "Teknik Lingkungan",
+    "kode_riasec": "IRE",
+    "deskripsi": "Menerapkan prinsip teknik dan sains untuk menyelesaikan permasalahan lingkungan dan sanitasi."
+  },
+  {
+    "nama_jurusan": "Teknik Pertambangan",
+    "kode_riasec": "RIE",
+    "deskripsi": "Berfokus pada proses ekstraksi dan pemrosesan mineral bumi secara efisien dan aman."
+  },
+  {
+    "nama_jurusan": "Teknologi Pangan",
+    "kode_riasec": "IRE",
+    "deskripsi": "Mempelajari aspek fisik, biokimia, dan mikrobiologis pada makanan untuk proses pengolahan dan pengawetan."
+  },
+  {
+    "nama_jurusan": "Agribisnis",
+    "kode_riasec": "ESR",
+    "deskripsi": "Mempelajari aspek manajemen, ekonomi, dan bisnis pada sektor pertanian dan industri terkait."
+  },
+  {
+    "nama_jurusan": "Agroteknologi",
+    "kode_riasec": "RIS",
+    "deskripsi": "Berfokus pada penguasaan teknologi produksi tanaman secara efektif, efisien, dan berkelanjutan."
+  },
+  {
+    "nama_jurusan": "Kedokteran Hewan",
+    "kode_riasec": "IRS",
+    "deskripsi": "Mempelajari diagnosa, pengobatan, dan pencegahan penyakit pada hewan."
+  },
+  {
+    "nama_jurusan": "Akuntansi",
+    "kode_riasec": "CEI",
+    "deskripsi": "Mempelajari pencatatan, pengklasifikasian, dan pelaporan transaksi keuangan untuk evaluasi kinerja bisnis."
+  },
+  {
+    "nama_jurusan": "Manajemen",
+    "kode_riasec": "ECS",
+    "deskripsi": "Mempelajari perencanaan, pengorganisasian, pengarahan, dan pengendalian sumber daya untuk mencapai tujuan organisasi."
+  },
+  {
+    "nama_jurusan": "Ilmu Ekonomi",
+    "kode_riasec": "IEA",
+    "deskripsi": "Menganalisis produksi, distribusi, dan konsumsi barang dan jasa pada skala mikro maupun makro."
+  },
+  {
+    "nama_jurusan": "Ilmu Hukum",
+    "kode_riasec": "EAS",
+    "deskripsi": "Mempelajari sistem peraturan yang mengikat masyarakat beserta tata cara peradilannya."
+  },
+  {
+    "nama_jurusan": "Ilmu Komunikasi",
+    "kode_riasec": "EAS",
+    "deskripsi": "Berfokus pada proses penyampaian pesan, media massa, jurnalistik, dan dinamika interaksi manusia."
+  },
+  {
+    "nama_jurusan": "Hubungan Internasional",
+    "kode_riasec": "EAS",
+    "deskripsi": "Mempelajari interaksi antarnegara, diplomasi, politik global, dan organisasi internasional."
+  },
+  {
+    "nama_jurusan": "Psikologi",
+    "kode_riasec": "SIA",
+    "deskripsi": "Mempelajari perilaku, proses mental, dan interaksi manusia di berbagai konteks lingkungan."
+  },
+  {
+    "nama_jurusan": "Sastra Inggris",
+    "kode_riasec": "ASE",
+    "deskripsi": "Mengkaji linguistik, karya sastra, dan budaya negara-negara penutur bahasa Inggris."
+  },
+  {
+    "nama_jurusan": "Sastra Indonesia",
+    "kode_riasec": "ASE",
+    "deskripsi": "Mempelajari kebahasaan, penulisan kreatif, dan apresiasi karya sastra berbahasa Indonesia."
+  },
+  {
+    "nama_jurusan": "Desain Komunikasi Visual (DKV)",
+    "kode_riasec": "ARE",
+    "deskripsi": "Menggabungkan seni dan teknologi untuk menyampaikan pesan melalui tipografi, ilustrasi, dan media digital."
+  },
+  {
+    "nama_jurusan": "Desain Interior",
+    "kode_riasec": "ARE",
+    "deskripsi": "Berfokus pada perancangan ruang dalam suatu bangunan untuk mengoptimalkan estetika dan fungsi."
+  },
+  {
+    "nama_jurusan": "Televisi dan Film",
+    "kode_riasec": "AES",
+    "deskripsi": "Mempelajari proses produksi karya audio-visual, penyiaran, penyutradaraan, dan penulisan skenario."
+  },
+  {
+    "nama_jurusan": "Ilmu Administrasi Negara / Publik",
+    "kode_riasec": "CES",
+    "deskripsi": "Mempelajari manajemen organisasi sektor publik, perumusan kebijakan, dan tata kelola pemerintahan."
+  },
+  {
+    "nama_jurusan": "Ilmu Administrasi Bisnis",
+    "kode_riasec": "ECS",
+    "deskripsi": "Berfokus pada strategi operasional perusahaan, pemasaran, SDM, dan kewirausahaan."
+  },
+  {
+    "nama_jurusan": "Ilmu Kesejahteraan Sosial",
+    "kode_riasec": "SEC",
+    "deskripsi": "Mempelajari metode pemberdayaan masyarakat dan intervensi masalah sosial untuk meningkatkan kualitas hidup."
+  },
+  {
+    "nama_jurusan": "Sosiologi",
+    "kode_riasec": "IEA",
+    "deskripsi": "Mengkaji struktur sosial, dinamika kelompok, serta fenomena dan interaksi yang terjadi di masyarakat."
+  },
+  {
+    "nama_jurusan": "Kriminologi",
+    "kode_riasec": "IEA",
+    "deskripsi": "Mempelajari penyebab kejahatan, profil pelaku, dan respons sistem peradilan pidana terhadap tindakan kriminal."
+  },
+  {
+    "nama_jurusan": "Ilmu Pemerintahan",
+    "kode_riasec": "ESC",
+    "deskripsi": "Mempelajari dinamika lembaga negara, politik legislatif, dan penyelenggaraan kekuasaan."
+  },
+  {
+    "nama_jurusan": "Pariwisata / Hospitality",
+    "kode_riasec": "EAS",
+    "deskripsi": "Berfokus pada manajemen destinasi wisata, layanan perhotelan, dan pengembangan atraksi budaya."
+  },
+  {
+    "nama_jurusan": "Pendidikan Guru Sekolah Dasar (PGSD)",
+    "kode_riasec": "SEC",
+    "deskripsi": "Menyiapkan tenaga pendidik untuk mengajar materi akademik dasar dan membina karakter anak usia dini."
+  },
+  {
+    "nama_jurusan": "Manajemen Pendidikan",
+    "kode_riasec": "CES",
+    "deskripsi": "Mempelajari tata kelola instansi pendidikan, perencanaan kurikulum, dan administrasi sekolah."
+  },
+  {
+    "nama_jurusan": "Hubungan Masyarakat (Public Relations)",
+    "kode_riasec": "EAS",
+    "deskripsi": "Berfokus pada strategi komunikasi untuk membangun dan memelihara citra positif instansi atau perusahaan."
+  },
+  {
+    "nama_jurusan": "Jurnalistik",
+    "kode_riasec": "EAS",
+    "deskripsi": "Mempelajari teknik peliputan, penulisan, dan penyebaran berita melalui berbagai medium."
+  },
+  {
+    "nama_jurusan": "Ilmu Perpustakaan",
+    "kode_riasec": "CIS",
+    "deskripsi": "Berfokus pada pengumpulan, pengorganisasian, preservasi, dan manajemen sistem informasi."
+  },
+  {
+    "nama_jurusan": "Antropologi",
+    "kode_riasec": "IEA",
+    "deskripsi": "Mengkaji evolusi budaya, kebiasaan, dan keragaman manusia dari aspek biologis maupun sosial."
+  }
+]
