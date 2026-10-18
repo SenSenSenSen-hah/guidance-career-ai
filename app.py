@@ -153,8 +153,16 @@ def generate_pdf_and_log_data(
         def clean_text(text: str) -> str:
             if not text:
                 return "-"
+            
+            # Ganti karakter Unicode khusus dengan karakter standar ASCII
+            text = text.replace('–', '-')  # Ganti en-dash
+            text = text.replace('—', '-')  # Ganti em-dash
+            text = text.replace('“', '"').replace('”', '"')  # Ganti tanda kutip pintar
+            text = text.replace('‘', "'").replace('’', "'")  # Ganti tanda kutip tunggal pintar
+            text = text.replace('•', '-')  # Ganti simbol bullet point
+            
             return text.encode('latin-1', 'replace').decode('latin-1')
-
+            
         # 2. Buat File PDF
         pdf = FPDF()
         pdf.add_page()
