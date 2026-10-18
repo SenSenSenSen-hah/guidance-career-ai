@@ -99,7 +99,9 @@ def search_internet_job_prospects(query: str) -> str:
     ALAT 2 (WEB SEARCH): Gunakan alat ini JIKA pengguna bertanya tentang prospek kerja, gaji, atau info tren karir masa depan yang butuh data internet real-time.
     """
     try:
-        results = DDGS().text(query, max_results=3)
+        # Menambahkan parameter region dan backend 'lite' untuk mengatasi pemblokiran server
+        results = DDGS().text(query, region="id-id", backend="lite", max_results=3)
+        
         if not results:
             return "Tidak ditemukan informasi di internet."
         
@@ -107,9 +109,12 @@ def search_internet_job_prospects(query: str) -> str:
         for r in results:
             rangkuman.append(f"Sumber: {r.get('title')}\nInfo: {r.get('body')}\n")
         return "\n".join(rangkuman)
+        
     except Exception as e:
-        return "Gagal mengakses internet saat ini."
-
+        # Mencetak log error ke terminal Streamlit agar mudah didiagnosis
+        print(f"Error DuckDuckGo: {e}")
+        return "Gagal mengakses internet saat ini karena kendala jaringan atau pemblokiran server."
+        
 def generate_pdf_and_log_data(nama_siswa: str, riasec_code: str, nama_jurusan: str, alasan_rekomendasi: str) -> str:
     """
     ALAT 3 (PDF & LOGGING): PANGGIL ALAT INI DI AKHIR PERCAKAPAN saat kamu sudah yakin memberikan rekomendasi final.
