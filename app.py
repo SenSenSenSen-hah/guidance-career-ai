@@ -8,7 +8,7 @@ from datetime import datetime
 from fpdf import FPDF
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 # ==================== 1. KONFIGURASI SISTEM ====================
 st.set_page_config(page_title="Autonomous Career Agent (RAG)", layout="wide")
