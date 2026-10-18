@@ -359,14 +359,25 @@ if 'pdf_data' in st.session_state:
         mime="application/pdf"
     )
     
-# Fitur Admin Tersembunyi (Untuk Skripsi Bab 4)
 with st.sidebar:
     st.markdown("### ⚙️ Admin & Riset")
-    if st.checkbox("Buka Panel Peneliti"):
-        st.write("Panel ini digunakan untuk melihat data eksperimen.")
-        if os.path.exists(DB_SQLITE_FILE):
-            conn = sqlite3.connect(DB_SQLITE_FILE)
-            import pandas as pd
-            df = pd.read_sql_query("SELECT * FROM chat_logs", conn)
-            st.dataframe(df)
-            conn.close()
+    
+    # 1. Tambahkan kolom input password
+    kunci_admin = st.text_input("Masukkan Sandi Peneliti:", type="password")
+    
+    # 2. Cek apakah password cocok dengan yang ada di Secrets
+    if kunci_admin == st.secrets["ADMIN_PASSWORD"]:
+        
+        # 3. Masukkan kode asli Anda ke dalam blok if ini
+        if st.checkbox("Buka Panel Peneliti"):
+            st.write("Panel ini digunakan untuk melihat data eksperimen.")
+            if os.path.exists(DB_SQLITE_FILE):
+                conn = sqlite3.connect(DB_SQLITE_FILE)
+                import pandas as pd
+                df = pd.read_sql_query("SELECT * FROM chat_logs", conn)
+                st.dataframe(df)
+                conn.close()
+                
+    # 4. Tampilkan pesan error jika password salah (dan kolom tidak kosong)
+    elif kunci_admin != "":
+        st.error("Akses ditolak. Sandi tidak valid.")
