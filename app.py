@@ -8,7 +8,7 @@ from datetime import datetime
 from fpdf import FPDF
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from ddgs import DDGS
+from tavily import TavilyClient
 
 # ==================== 1. KONFIGURASI SISTEM ====================
 st.set_page_config(page_title="Autonomous Career Agent (RAG)", layout="wide")
@@ -99,21 +99,30 @@ def search_internet_job_prospects(query: str) -> str:
     ALAT 2 (WEB SEARCH): Gunakan alat ini JIKA pengguna bertanya tentang prospek kerja, gaji, atau info tren karir masa depan yang butuh data internet real-time.
     """
     try:
-        # Menambahkan parameter region dan backend 'lite' untuk mengatasi pemblokiran server
-        results = DDGS().text(query, region="id-id", backend="lite", max_results=3)
+        # Mengambil API Key (dari file .env untuk lokal, atau Secrets untuk Streamlit Cloud)
+        api_key = os.environ.get("TAVILY_API_KEY")
+        if not api_key:
+            import streamlit as st
+            api_key = st.secrets["TAVILY_API_KEY"]
+            
+        # Inisialisasi klien Tavily
+        tavily = TavilyClient(api_key=api_key)
         
-        if not results:
+        # Eksekusi pencarian ke internet
+        response = tavily.search(query=query, search_depth="basic", max_results=3)
+        
+        if not response.get('results'):
             return "Tidak ditemukan informasi di internet."
-        
+            
+        # Merangkum hasil untuk dibaca oleh agen AI
         rangkuman = []
-        for r in results:
-            rangkuman.append(f"Sumber: {r.get('title')}\nInfo: {r.get('body')}\n")
+        for r in response.get('results', []):
+            rangkuman.append(f"Sumber: {r.get('title')}\nInfo: {r.get('content')}\n")
         return "\n".join(rangkuman)
         
     except Exception as e:
-        # Mencetak log error ke terminal Streamlit agar mudah didiagnosis
-        print(f"Error DuckDuckGo: {e}")
-        return "Gagal mengakses internet saat ini karena kendala jaringan atau pemblokiran server."
+        print(f"Error Tavily: {e}")
+        return "Gagal mengakses internet saat ini karena kendala jaringan."
         
 def generate_pdf_and_log_data(nama_siswa: str, riasec_code: str, nama_jurusan: str, alasan_rekomendasi: str) -> str:
     """
