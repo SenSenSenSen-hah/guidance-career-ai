@@ -1,6 +1,6 @@
 streamlit==1.32.0
 fpdf==1.7.2
 scikit-learn==1.4.1.post1
-ddgs
+tavily-python
 google-generativeai>=0.5.2
 langchain-community
