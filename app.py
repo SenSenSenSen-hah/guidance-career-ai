@@ -124,13 +124,23 @@ def search_internet_job_prospects(query: str) -> str:
         print(f"Error Tavily: {e}")
         return "Gagal mengakses internet saat ini karena kendala jaringan."
         
-def generate_pdf_and_log_data(nama_siswa: str, riasec_code: str, nama_jurusan: str, alasan_rekomendasi: str) -> str:
+def generate_pdf_and_log_data(
+    nama_siswa: str, 
+    riasec_code: str, 
+    nama_jurusan: str, 
+    alasan_rekomendasi: str,
+    riasec_detail: str,          # BARU: Kepanjangan per huruf RIASEC
+    prospek_kerja: str,          # BARU: Daftar prospek karir
+    estimasi_gaji: str,          # BARU: Informasi gaji dari internet
+    hal_yang_dikembangkan: str   # BARU: Skill/Saran pengembangan
+) -> str:
     """
     ALAT 3 (PDF & LOGGING): PANGGIL ALAT INI DI AKHIR PERCAKAPAN saat kamu sudah yakin memberikan rekomendasi final.
     Fungsi ini akan menyimpan data ke database SQLite untuk penelitian, dan membuat file PDF untuk didownload pengguna.
+    PASTIKAN kamu mengisi parameter riasec_detail, prospek_kerja, estimasi_gaji, dan hal_yang_dikembangkan secara lengkap dari hasil analisismu dan pencarian web.
     """
     try:
-        # 1. Simpan ke SQLite Logging (Sangat berguna untuk Bab 4 Skripsi)
+        # 1. Simpan ke SQLite Logging (Tetap sama agar tidak memicu error pada tabel database lama Anda)
         conn = sqlite3.connect(DB_SQLITE_FILE)
         c = conn.cursor()
         tgl = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -139,30 +149,65 @@ def generate_pdf_and_log_data(nama_siswa: str, riasec_code: str, nama_jurusan: s
         conn.commit()
         conn.close()
 
+        # Fungsi bantuan agar teks tidak error saat diubah ke PDF (Mengatasi isu karakter latin-1 di FPDF)
+        def clean_text(text: str) -> str:
+            if not text:
+                return "-"
+            return text.encode('latin-1', 'replace').decode('latin-1')
+
         # 2. Buat File PDF
         pdf = FPDF()
         pdf.add_page()
+        
+        # --- JUDUL ---
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, "LAPORAN KONSULTASI KARIR AI", 0, 1, 'C')
-        pdf.ln(10)
-        
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, f"Nama: {nama_siswa.encode('latin-1', 'replace').decode('latin-1')}", ln=1)
-        pdf.cell(0, 10, f"Kode Kepribadian Holland (RIASEC): {riasec_code}", ln=1)
-        pdf.cell(0, 10, f"Rekomendasi Utama: {nama_jurusan.encode('latin-1', 'replace').decode('latin-1')}", ln=1)
         pdf.ln(5)
         
-        pdf.set_font("Arial", '', 11)
-        pdf.multi_cell(0, 7, alasan_rekomendasi.encode('latin-1', 'replace').decode('latin-1'))
+        # --- DATA DIRI & HASIL RIASEC ---
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, f"Nama: {clean_text(nama_siswa)}", ln=1)
+        pdf.cell(0, 10, f"Kode Kepribadian Holland (RIASEC): {riasec_code}", ln=1)
         
+        pdf.set_font("Arial", '', 11)
+        # Menuliskan kepanjangan detail RIASEC
+        pdf.multi_cell(0, 7, clean_text(f"Detail Kepribadian:\n{riasec_detail}"))
+        pdf.ln(3)
+        
+        # --- REKOMENDASI JURUSAN ---
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, f"Rekomendasi Utama: {clean_text(nama_jurusan)}", ln=1)
+        
+        pdf.set_font("Arial", '', 11)
+        pdf.multi_cell(0, 7, clean_text(alasan_rekomendasi))
+        pdf.ln(5)
+        
+        # --- PROSPEK KERJA & GAJI (BARU) ---
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, "Prospek Kerja & Estimasi Gaji:", ln=1)
+        
+        pdf.set_font("Arial", '', 11)
+        pdf.multi_cell(0, 7, clean_text(f"Prospek Kerja:\n{prospek_kerja}"))
+        pdf.ln(2)
+        pdf.multi_cell(0, 7, clean_text(f"Estimasi Gaji Saat Ini:\n{estimasi_gaji}"))
+        pdf.ln(5)
+
+        # --- HAL YANG PERLU DIKEMBANGKAN (BARU) ---
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, "Hal yang Perlu Dikembangkan:", ln=1)
+        
+        pdf.set_font("Arial", '', 11)
+        pdf.multi_cell(0, 7, clean_text(hal_yang_dikembangkan))
+        
+        # --- OUTPUT ---
         # Simpan ke Session State untuk ditampilkan sebagai tombol download di UI
         st.session_state['pdf_data'] = pdf.output(dest='S').encode('latin-1', 'replace')
-        st.session_state['pdf_filename'] = f"Hasil_Karir_{nama_siswa.replace(' ', '_')}.pdf"
+        st.session_state['pdf_filename'] = f"Laporan_Karir_{nama_siswa.replace(' ', '_')}.pdf"
         
         return "SUKSES: Data berhasil dicatat ke database penelitian dan PDF telah disiapkan untuk diunduh oleh pengguna."
     except Exception as e:
         return f"GAGAL membuat PDF atau menyimpan ke database: {str(e)}"
-
+        
 # ==================== 4. INISIALISASI AUTONOMOUS AGENT ====================
 
 def get_agent():
@@ -201,9 +246,9 @@ def get_agent():
         st.sidebar.info(f"Connected Model: `{chosen_model}`")
 
         system_instruction = """
+        
         Kamu adalah Autonomous Career Agent yang cerdas dan empatik. 
-
-    Kamu memiliki 3 ALAT (Tools) utama:
+        Kamu memiliki 3 ALAT (Tools) utama:
     1. search_major_with_rag: Untuk mencari dan mencocokkan jurusan berdasarkan minat.
     2. search_internet_job_prospects: Untuk mencari data faktual terkini mengenai gaji, tren, atau prospek kerja di internet.
     3. generate_pdf_and_log_data: Untuk membuat laporan PDF dan menyimpan data akhir ke database.
@@ -217,7 +262,7 @@ def get_agent():
     2. Analisis Kode RIASEC (3 huruf dominan) dari percakapan tersebut.
     3. WAJIB panggil alat `search_major_with_rag` untuk mencari rekomendasi jurusan yang tepat.
     4. JIKA pengguna bertanya soal prospek kerja atau gaji, panggil alat `search_internet_job_prospects` untuk mencari fakta web (Patuhi Aturan Mutlak di atas).
-    5. SAAT PERCAKAPAN HAMPIR SELESAI, tawarkan untuk membuatkan Laporan PDF. Jika pengguna setuju, panggil alat `generate_pdf_and_log_data`.
+    5. SAAT PERCAKAPAN HAMPIR SELESAI, tawarkan untuk membuatkan Laporan PDF. JIKA pengguna setuju, rangkum seluruh data (termasuk kepanjangan detail 3 huruf dominan RIASEC, daftar prospek kerja, estimasi gaji, dan hal yang perlu dikembangkan) lalu WAJIB panggil alat `generate_pdf_and_log_data` dengan argumen yang lengkap.
     6. Berkomunikasi selalu menggunakan bahasa Indonesia yang santai, empatik, suportif, dan memotivasi siswa.
         """
 
