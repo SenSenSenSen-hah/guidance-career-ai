@@ -88,12 +88,21 @@ def search_major_with_rag(riasec_code: str, student_story: str) -> str:
         for idx in ranked_indices[:3]: # Ambil Top 3
             item = filtered_db[idx]
             skor = round(cosine_sim[idx] * 100, 1)
-            hasil.append(f"- {item['nama_jurusan']} (Kode: {item['kode_riasec']}, Skor Relevansi Semantik: {skor}%): {item['deskripsi']}")
+        
+            # Gunakan .get() untuk nama jurusan agar bebas error
+            nama_jurusan = item.get('nama_jurusan', item.get('jurusan', 'Nama Tidak Diketahui'))
+            kode_jurusan = item.get('kode_riasec', item.get('riasec', '---'))
+            deskripsi = item.get('deskripsi', '')
+            
+            hasil.append(f"- {nama_jurusan} (Kode: {kode_jurusan}, Skor Relevansi Semantik: {skor}%): {deskripsi}")
             
         return "\n".join(hasil)
-    except Exception as e:
-        return f"Gagal mencari database: {str(e)}"
-
+        
+        except Exception as e:
+        # Menampilkan kotak error merah di layar Anda (Streamlit) agar kita tahu apa error aslinya!
+        st.error(f"DEBUG ERROR PADA ALAT RAG: {str(e)}")
+        return f"Gagal mencari database karena masalah teknis: {str(e)}"
+        
 def search_internet_job_prospects(query: str) -> str:
     """
     ALAT 2 (WEB SEARCH): Gunakan alat ini JIKA pengguna bertanya tentang prospek kerja, gaji, atau info tren karir masa depan yang butuh data internet real-time.
