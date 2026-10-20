@@ -98,7 +98,7 @@ def search_major_with_rag(riasec_code: str, student_story: str) -> str:
             
         return "\n".join(hasil)
         
-        except Exception as e:
+    except Exception as e:
         # Menampilkan kotak error merah di layar Anda (Streamlit) agar kita tahu apa error aslinya!
         st.error(f"DEBUG ERROR PADA ALAT RAG: {str(e)}")
         return f"Gagal mencari database karena masalah teknis: {str(e)}"
