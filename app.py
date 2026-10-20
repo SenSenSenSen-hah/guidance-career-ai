@@ -12,6 +12,11 @@ from tavily import TavilyClient
 
 # ==================== 1. KONFIGURASI SISTEM ====================
 st.set_page_config(page_title="Autonomous Career Agent (RAG)", layout="wide")
+st.markdown("""
+    <style>
+    [data-testid="stToolbar"] {visibility: hidden !important;}
+    </style>
+    """, unsafe_allow_html=True)
 
 st.markdown("""
 <style>
