@@ -88,7 +88,7 @@ def search_major_with_rag(riasec_code: str, student_story: str) -> str:
         for idx in ranked_indices[:3]: # Ambil Top 3
             item = filtered_db[idx]
             skor = round(cosine_sim[idx] * 100, 1)
-            hasil.append(f"- {item['jurusan']} (Kode: {item['riasec']}, Skor Relevansi Semantik: {skor}%): {item['deskripsi']}")
+            hasil.append(f"- {item['nama_jurusan']} (Kode: {item['kode_riasec']}, Skor Relevansi Semantik: {skor}%): {item['deskripsi']}")
             
         return "\n".join(hasil)
     except Exception as e:
