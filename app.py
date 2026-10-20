@@ -57,6 +57,8 @@ def search_major_with_rag(riasec_code: str, student_story: str) -> str:
     Masukkan kode RIASEC (misal: 'IRE') dan ringkasan cerita/minat siswa (misal: 'suka main komputer').
     """
     try:
+        import streamlit as st
+        
         with open(DB_JSON_FILE, 'r') as f:
             db = json.load(f)
             
@@ -64,34 +66,33 @@ def search_major_with_rag(riasec_code: str, student_story: str) -> str:
         filtered_db = []
         user_set = set(riasec_code.upper())
         for item in db:
-            if len(user_set.intersection(set(item['riasec']))) >= 1:
+            # Ambil nilai kode RIASEC (Kompatibel untuk 'kode_riasec' maupun 'riasec')
+            kode_item = item.get('kode_riasec') or item.get('riasec') or ''
+            
+            if len(user_set.intersection(set(kode_item.upper()))) >= 1:
                 filtered_db.append(item)
                 
         if not filtered_db:
             filtered_db = db # Fallback jika tidak ada yang cocok sama sekali
             
         # Filter 2: RAG (Semantic Search menggunakan TF-IDF & Cosine Similarity)
-        # Mengukur kedekatan cerita siswa dengan deskripsi kurikulum jurusan
-        corpus = [item['deskripsi'] for item in filtered_db]
-        corpus.append(student_story) # Masukkan cerita siswa di akhir untuk dibandingkan
+        corpus = [item.get('deskripsi', '') for item in filtered_db]
+        corpus.append(student_story) 
         
         vectorizer = TfidfVectorizer()
         tfidf_matrix = vectorizer.fit_transform(corpus)
         
-        # Hitung kemiripan cerita siswa (index terakhir) dengan semua jurusan
         cosine_sim = cosine_similarity(tfidf_matrix[-1], tfidf_matrix[:-1])[0]
-        
-        # Urutkan berdasarkan skor tertinggi
         ranked_indices = cosine_sim.argsort()[::-1]
         
         hasil = ["HASIL PENCARIAN DATABASE (Diurutkan dari paling relevan):"]
         for idx in ranked_indices[:3]: # Ambil Top 3
             item = filtered_db[idx]
             skor = round(cosine_sim[idx] * 100, 1)
-        
-            # Gunakan .get() untuk nama jurusan agar bebas error
-            nama_jurusan = item.get('nama_jurusan', item.get('jurusan', 'Nama Tidak Diketahui'))
-            kode_jurusan = item.get('kode_riasec', item.get('riasec', '---'))
+            
+            # Ambil nama jurusan dan kode riasec secara aman
+            nama_jurusan = item.get('nama_jurusan') or item.get('jurusan') or 'Nama Tidak Diketahui'
+            kode_jurusan = item.get('kode_riasec') or item.get('riasec') or '---'
             deskripsi = item.get('deskripsi', '')
             
             hasil.append(f"- {nama_jurusan} (Kode: {kode_jurusan}, Skor Relevansi Semantik: {skor}%): {deskripsi}")
@@ -99,8 +100,7 @@ def search_major_with_rag(riasec_code: str, student_story: str) -> str:
         return "\n".join(hasil)
         
     except Exception as e:
-        # Menampilkan kotak error merah di layar Anda (Streamlit) agar kita tahu apa error aslinya!
-        st.error(f"DEBUG ERROR PADA ALAT RAG: {str(e)}")
+        st.error(f"DEBUG ERROR PADA ALAT RAG: {type(e).__name__} - {str(e)}")
         return f"Gagal mencari database karena masalah teknis: {str(e)}"
         
 def search_internet_job_prospects(query: str) -> str:
