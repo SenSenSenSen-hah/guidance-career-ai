@@ -16,6 +16,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed", 
     layout="wide"
 )
+st.sidebar.success("SIDEBAR")
 
 st.markdown("""
     <style>
