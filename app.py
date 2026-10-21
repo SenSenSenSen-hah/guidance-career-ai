@@ -19,19 +19,7 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* 1. Sembunyikan menu navigasi Streamlit di kanan atas (Fork, dll) */
     [data-testid="stToolbar"] {visibility: hidden !important;}
-    
-    /* 2. PAKSA tombol panah sidebar kiri atas untuk selalu muncul dan terlihat jelas */
-    [data-testid="collapsedControl"] {
-        visibility: visible !important;
-        display: flex !important;
-        color: #1f77b4 !important; /* Memberikan warna biru agar tidak transparan */
-        background-color: #f0f2f6 !important; /* Sedikit latar abu-abu agar kontras */
-        border-radius: 5px;
-    }
-
-    /* Desain elemen kustom aplikasi Anda (biarkan tetap ada) */
     .main-header { font-size: 2.2rem; color: #1f77b4; text-align: center; font-weight: 800; }
     .xai-box { border-left: 4px solid #ff9800; background-color: #fff3e0; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.85em; margin-bottom: 10px; }
     </style>
