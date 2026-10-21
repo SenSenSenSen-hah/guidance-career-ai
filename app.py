@@ -11,7 +11,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from tavily import TavilyClient
 
 # ==================== 1. KONFIGURASI SISTEM ====================
-st.set_page_config(page_title="Autonomous Career Agent (RAG)", layout="wide")
+st.set_page_config(page_title="Autonomous Career Agent (RAG)", initial_sidebar_state="collapsed", layout="wide")
 st.markdown("""
     <style>
     [data-testid="stToolbar"] {visibility: hidden !important;}
@@ -264,8 +264,6 @@ def get_agent():
         # Fallback to the first available model if none of the above match
         if not chosen_model:
             chosen_model = valid_models[0]
-
-        st.sidebar.info(f"Connected Model: `{chosen_model}`")
 
         system_instruction = """
         
