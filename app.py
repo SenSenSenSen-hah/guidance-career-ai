@@ -11,18 +11,21 @@ from sklearn.metrics.pairwise import cosine_similarity
 from tavily import TavilyClient
 
 # ==================== 1. KONFIGURASI SISTEM ====================
-st.set_page_config(page_title="Autonomous Career Agent (RAG)", initial_sidebar_state="collapsed", layout="wide")
-st.markdown("""
-    <style>
-    [data-testid="stToolbar"] {visibility: hidden !important;}
-    </style>
-    """, unsafe_allow_html=True)
+st.set_page_config(
+    page_title="Autonomous Career Agent (RAG)", 
+    initial_sidebar_state="collapsed", 
+    layout="wide"
+)
 
 st.markdown("""
-<style>
+    <style>
+    /* Sembunyikan menu navigasi Streamlit di kanan atas */
+    [data-testid="stToolbar"] {visibility: hidden !important;}
+    
+    /* Desain elemen kustom aplikasi */
     .main-header { font-size: 2.2rem; color: #1f77b4; text-align: center; font-weight: 800; }
     .xai-box { border-left: 4px solid #ff9800; background-color: #fff3e0; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.85em; margin-bottom: 10px; }
-</style>
+    </style>
 """, unsafe_allow_html=True)
 
 DB_JSON_FILE = 'agent_knowledge_base.json'
