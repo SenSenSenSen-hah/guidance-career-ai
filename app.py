@@ -13,7 +13,7 @@ from tavily import TavilyClient
 # ==================== 1. KONFIGURASI SISTEM ====================
 st.set_page_config(
     page_title="Autonomous Career Agent (RAG)", 
-    initial_sidebar_state="collapsed", 
+    initial_sidebar_state="expanded", 
     layout="wide"
 )
 st.sidebar.success("SIDEBAR")
