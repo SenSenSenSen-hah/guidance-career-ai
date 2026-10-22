@@ -10,7 +10,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from tavily import TavilyClient
 
-# ==================== 1. KONFIGURASI SISTEM ====================
+#1. KONFIGURASI SISTEM
 st.set_page_config(
     page_title="Autonomous Career Agent (RAG)", 
     initial_sidebar_state="expanded", 
@@ -29,7 +29,7 @@ st.markdown("""
 DB_JSON_FILE = 'agent_knowledge_base.json'
 DB_SQLITE_FILE = 'skripsi_logs.db'
 
-# ==================== 2. INITIALIZATION (DATABASE & RAG) ====================
+# 2. DATABASE & RAG
 
 def init_databases():
     # A. JSON Knowledge Base (Untuk RAG)
@@ -45,7 +45,7 @@ def init_databases():
         with open(DB_JSON_FILE, 'w') as f:
             json.dump(default_db, f, indent=4)
             
-    # B. SQLite Database (Untuk Logging/Skripsi)
+    # B. SQLite Database
     conn = sqlite3.connect(DB_SQLITE_FILE)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS chat_logs 
@@ -55,7 +55,7 @@ def init_databases():
 
 init_databases()
 
-# ==================== 3. TOOLS UNTUK AUTONOMOUS AGENT ====================
+# 3. TOOLS UNTUK AUTONOMOUS AGENT
 
 def search_major_with_rag(riasec_code: str, student_story: str) -> str:
     """
@@ -96,7 +96,7 @@ def search_major_with_rag(riasec_code: str, student_story: str) -> str:
             item = filtered_db[idx]
             skor = round(cosine_sim[idx] * 100, 1)
             
-            # Ambil nama jurusan dan kode riasec secara aman
+            # Ambil nama jurusan dan kode riasec
             nama_jurusan = item.get('nama_jurusan') or item.get('jurusan') or 'Nama Tidak Diketahui'
             kode_jurusan = item.get('kode_riasec') or item.get('riasec') or '---'
             deskripsi = item.get('deskripsi', '')
@@ -114,22 +114,22 @@ def search_internet_job_prospects(query: str) -> str:
     ALAT 2 (WEB SEARCH): Gunakan alat ini JIKA pengguna bertanya tentang prospek kerja, gaji, atau info tren karir masa depan yang butuh data internet real-time.
     """
     try:
-        # Mengambil API Key (dari file .env untuk lokal, atau Secrets untuk Streamlit Cloud)
+        # API KEY
         api_key = os.environ.get("TAVILY_API_KEY")
         if not api_key:
             import streamlit as st
             api_key = st.secrets["TAVILY_API_KEY"]
             
-        # Inisialisasi klien Tavily
+        # Tavily API
         tavily = TavilyClient(api_key=api_key)
         
-        # Eksekusi pencarian ke internet
+        # Pencarian ke internet
         response = tavily.search(query=query, search_depth="basic", max_results=3)
         
         if not response.get('results'):
             return "Tidak ditemukan informasi di internet."
             
-        # Merangkum hasil untuk dibaca oleh agen AI
+        # Merangkum hasil
         rangkuman = []
         for r in response.get('results', []):
             rangkuman.append(f"Sumber: {r.get('title')}\nInfo: {r.get('content')}\n")
@@ -144,10 +144,10 @@ def generate_pdf_and_log_data(
     riasec_code: str, 
     nama_jurusan: str, 
     alasan_rekomendasi: str,
-    riasec_detail: str,          # BARU: Kepanjangan per huruf RIASEC
-    prospek_kerja: str,          # BARU: Daftar prospek karir
-    estimasi_gaji: str,          # BARU: Informasi gaji dari internet
-    hal_yang_dikembangkan: str   # BARU: Skill/Saran pengembangan
+    riasec_detail: str,          
+    prospek_kerja: str,          
+    estimasi_gaji: str,          
+    hal_yang_dikembangkan: str   
 ) -> str:
     """
     ALAT 3 (PDF & LOGGING): PANGGIL ALAT INI DI AKHIR PERCAKAPAN saat kamu sudah yakin memberikan rekomendasi final.
@@ -155,7 +155,7 @@ def generate_pdf_and_log_data(
     PASTIKAN kamu mengisi parameter riasec_detail, prospek_kerja, estimasi_gaji, dan hal_yang_dikembangkan secara lengkap dari hasil analisismu dan pencarian web.
     """
     try:
-        # 1. Simpan ke SQLite Logging (Tetap sama agar tidak memicu error pada tabel database lama Anda)
+        # 1. Simpan ke SQLite
         conn = sqlite3.connect(DB_SQLITE_FILE)
         c = conn.cursor()
         tgl = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -164,12 +164,11 @@ def generate_pdf_and_log_data(
         conn.commit()
         conn.close()
 
-        # Fungsi bantuan agar teks tidak error saat diubah ke PDF (Mengatasi isu karakter latin-1 di FPDF)
+        # Fungsi bantuan agar teks tidak error saat diubah ke PDF
         def clean_text(text: str) -> str:
             if not text:
                 return "-"
             
-            # Ganti karakter Unicode khusus dengan karakter standar ASCII
             text = text.replace('–', '-')  # Ganti en-dash
             text = text.replace('—', '-')  # Ganti em-dash
             text = text.replace('“', '"').replace('”', '"')  # Ganti tanda kutip pintar
@@ -182,7 +181,6 @@ def generate_pdf_and_log_data(
         pdf = FPDF()
         pdf.add_page()
         
-        # --- JUDUL ---
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, "LAPORAN KONSULTASI KARIR AI", 0, 1, 'C')
         pdf.ln(5)
@@ -193,11 +191,11 @@ def generate_pdf_and_log_data(
         pdf.cell(0, 10, f"Kode Kepribadian Holland (RIASEC): {riasec_code}", ln=1)
         
         pdf.set_font("Arial", '', 11)
-        # Menuliskan kepanjangan detail RIASEC
+        # detail RIASEC
         pdf.multi_cell(0, 7, clean_text(f"Detail Kepribadian:\n{riasec_detail}"))
         pdf.ln(3)
         
-        # --- REKOMENDASI JURUSAN ---
+        # Rekomendasi Jurusan
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, f"Rekomendasi Utama: {clean_text(nama_jurusan)}", ln=1)
         
@@ -205,7 +203,7 @@ def generate_pdf_and_log_data(
         pdf.multi_cell(0, 7, clean_text(alasan_rekomendasi))
         pdf.ln(5)
         
-        # --- PROSPEK KERJA & GAJI (BARU) ---
+        # Prospek kerja & gaji
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, "Prospek Kerja & Estimasi Gaji:", ln=1)
         
@@ -215,7 +213,7 @@ def generate_pdf_and_log_data(
         pdf.multi_cell(0, 7, clean_text(f"Estimasi Gaji Saat Ini:\n{estimasi_gaji}"))
         pdf.ln(5)
 
-        # --- HAL YANG PERLU DIKEMBANGKAN (BARU) ---
+        # Hal yang perlu dikembangkan
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, "Hal yang Perlu Dikembangkan:", ln=1)
         
@@ -223,7 +221,6 @@ def generate_pdf_and_log_data(
         pdf.multi_cell(0, 7, clean_text(hal_yang_dikembangkan))
         
         # --- OUTPUT ---
-        # Simpan ke Session State untuk ditampilkan sebagai tombol download di UI
         st.session_state['pdf_data'] = pdf.output(dest='S').encode('latin-1', 'replace')
         st.session_state['pdf_filename'] = f"Laporan_Karir_{nama_siswa.replace(' ', '_')}.pdf"
         
@@ -231,7 +228,7 @@ def generate_pdf_and_log_data(
     except Exception as e:
         return f"GAGAL membuat PDF atau menyimpan ke database: {str(e)}"
         
-# ==================== 4. INISIALISASI AUTONOMOUS AGENT ====================
+# 4. INISIALISASI AUTONOMOUS AGENT
 
 def get_agent():
     try:
@@ -262,7 +259,6 @@ def get_agent():
                 chosen_model = pref
                 break
                 
-        # Fallback to the first available model if none of the above match
         if not chosen_model:
             chosen_model = valid_models[0]
 
@@ -292,7 +288,6 @@ def get_agent():
     3. Jika alat pencarian RAG mengembalikan lebih dari satu jurusan (misal: Sosiologi dan Antropologi), Anda wajib menyebutkan semuanya dan menjelaskan perbedaan fokusnya kepada siswa.
         """
 
-        # 3. Instantiate using the exact model string returned by Google
         model = genai.GenerativeModel(
             model_name=chosen_model,
             tools=[search_major_with_rag, search_internet_job_prospects, generate_pdf_and_log_data],
@@ -304,7 +299,7 @@ def get_agent():
         st.error(f"Error Konfigurasi API: {e}")
         return None
         
-# ==================== 5. ANTARMUKA CHAT & XAI (EXPLAINABLE AI) ====================
+# Interface & XAI
 
 st.markdown('<h1 class="main-header">Autonomous Career Agent (RAG + Web Tools)</h1>', unsafe_allow_html=True)
 
@@ -316,7 +311,7 @@ if "chat_session" not in st.session_state:
     if model:
         st.session_state.chat_session = model.start_chat(enable_automatic_function_calling=True)
 
-# Tampilkan riwayat obrolan (Teks saja)
+# Tampilkan riwayat obrolan
 for msg in st.session_state.messages:
     if "parts" in msg:
         with st.chat_message("ai" if msg["role"] == "model" else "human"):
@@ -332,32 +327,29 @@ if user_input:
     with st.chat_message("ai"):
         with st.spinner("🤖 Agen sedang berpikir, menganalisis, dan memanggil alat jika diperlukan..."):
             try:
-                # Rekam panjang history sebelum dikirim (Untuk melacak Chain of Thought)
+                # Rekam panjang history sebelum dikirim
                 old_history_len = len(st.session_state.chat_session.history)
                 
-                # Kirim pesan (Proses otonom berjalan di sini)
+                # Kirim pesan
                 response = st.session_state.chat_session.send_message(user_input)
                 
-                # ==========================================
                 # FITUR XAI (Explainable AI / Transparansi Pikiran)
-                # ==========================================
+                
                 new_history = st.session_state.chat_session.history[old_history_len:]
                 tools_used = []
                 for h_msg in new_history:
                     for part in h_msg.parts:
-                        # Mengecek apakah agen memanggil fungsi Python di balik layar
+                        
                         if hasattr(part, 'function_call') and part.function_call:
                             fn_name = part.function_call.name
                             args = dict(part.function_call.args)
                             tools_used.append(f"🔧 <b>Agent Action:</b> Memanggil <code>{fn_name}</code> dengan argumen {args}")
                 
-                # Menampilkan proses berpikir AI jika ada alat yang dipanggil
+                # Menampilkan proses berpikir AI 
                 if tools_used:
                     with st.expander("🧠 Lihat Proses Berpikir AI (Chain-of-Thought)"):
                         for t in tools_used:
                             st.markdown(f'<div class="xai-box">{t}</div>', unsafe_allow_html=True)
-                
-                # ==========================================
                 
                 # Tampilkan balasan teks
                 st.write(response.text)
@@ -366,7 +358,7 @@ if user_input:
             except Exception as e:
                 st.error(f"Terjadi kesalahan agen: {str(e)}")
 
-# Menampilkan tombol download PDF jika agen sudah mengeksekusi alat generate_pdf
+#tombol download PDF
 if 'pdf_data' in st.session_state:
     st.markdown("---")
     st.success("📄 Agen telah membuat laporan PDF Anda!")
@@ -380,13 +372,11 @@ if 'pdf_data' in st.session_state:
 with st.sidebar:
     st.markdown("### ⚙️ Admin & Riset")
     
-    # 1. Tambahkan kolom input password
+    # password
     kunci_admin = st.text_input("Masukkan Sandi Peneliti:", type="password")
     
-    # 2. Cek apakah password cocok dengan yang ada di Secrets
     if kunci_admin == st.secrets["ADMIN_PASSWORD"]:
         
-        # 3. Masukkan kode asli Anda ke dalam blok if ini
         if st.checkbox("Buka Panel Peneliti"):
             st.write("Panel ini digunakan untuk melihat data eksperimen.")
             if os.path.exists(DB_SQLITE_FILE):
@@ -396,6 +386,5 @@ with st.sidebar:
                 st.dataframe(df)
                 conn.close()
                 
-    # 4. Tampilkan pesan error jika password salah (dan kolom tidak kosong)
     elif kunci_admin != "":
         st.error("Akses ditolak. Sandi tidak valid.")
