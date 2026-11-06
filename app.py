@@ -28,31 +28,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 DB_JSON_FILE = 'agent_knowledge_base.json'
-DB_SQLITE_FILE = 'skripsi_logs.db'
 
 # 2. DATABASE & RAG
 
 def init_databases():
     # A. JSON Knowledge Base (Untuk RAG)
     if not os.path.exists(DB_JSON_FILE):
-        default_db = [
-            {"jurusan": "Teknik Informatika", "riasec": "IRC", "deskripsi": "Fokus pada komputasi, algoritma, kecerdasan buatan, dan pemrograman perangkat lunak. Cocok untuk yang suka memecahkan teka-teki logika."},
-            {"jurusan": "Psikologi", "riasec": "SIA", "deskripsi": "Mempelajari perilaku manusia dan proses mental. Memerlukan empati tinggi dan kemampuan observasi analitis."},
-            {"jurusan": "Manajemen Bisnis", "riasec": "EAS", "deskripsi": "Pengelolaan organisasi, kepemimpinan, dan finansial. Cocok untuk yang berjiwa wirausaha dan suka bernegosiasi."},
-            {"jurusan": "Ilmu Komunikasi", "riasec": "SAE", "deskripsi": "Fokus pada jurnalistik, public relations, dan media kreatif. Membutuhkan kemampuan verbal dan sosialisasi yang baik."},
-            {"jurusan": "Kedokteran", "riasec": "ISA", "deskripsi": "Ilmu medis, kesehatan, dan penyembuhan pasien. Sangat butuh ketelitian sains dan keinginan membantu orang lain."},
-            {"jurusan": "Desain Komunikasi Visual", "riasec": "AES", "deskripsi": "Seni terapan, desain grafis, dan kreativitas visual. Menggabungkan teknologi dan rasa estetika tinggi."}
-        ]
-        with open(DB_JSON_FILE, 'w') as f:
-            json.dump(default_db, f, indent=4)
-            
-    # B. SQLite Database
-    conn = sqlite3.connect(DB_SQLITE_FILE)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS chat_logs 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, tanggal TEXT, nama_siswa TEXT, riasec_code TEXT, jurusan_rekomendasi TEXT, ringkasan_chat TEXT)''')
-    conn.commit()
-    conn.close()
+        st.error(f"⚠️ '{DB_JSON_FILE}' not found, please contact the administrator.")
+        st.stop()
 
 init_databases()
 
