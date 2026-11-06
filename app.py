@@ -320,6 +320,10 @@ for msg in st.session_state.messages:
 user_input = st.chat_input("Ketik di sini...")
 
 if user_input:
+    if user_input.strip() == "":
+        st.warning("⚠️ Pesan tidak boleh kosong atau hanya berisi karakter spasi.")
+        st.stop()
+        
     with st.chat_message("human"):
         st.write(user_input)
     st.session_state.messages.append({"role": "human", "parts": [user_input]})
