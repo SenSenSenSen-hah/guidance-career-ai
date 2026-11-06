@@ -319,9 +319,15 @@ for msg in st.session_state.messages:
 
 user_input = st.chat_input("Ketik di sini...")
 
+MAX_CHARS = 2000
+
 if user_input:
     if user_input.strip() == "":
         st.warning("⚠️ Pesan tidak boleh kosong atau hanya berisi karakter spasi.")
+        st.stop()
+        
+    if len(user_input) > MAX_CHARS:
+        st.warning(f"⚠️ Pesan terlalu panjang! Batas maksimal adalah {MAX_CHARS} karakter. Pesan Anda berisi {len(user_input)} karakter. Tolong ringkas pertanyaan Anda.")
         st.stop()
         
     with st.chat_message("human"):
