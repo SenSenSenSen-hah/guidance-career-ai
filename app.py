@@ -286,6 +286,7 @@ def get_agent():
     1. Jika pengguna tidak menyebutkan namanya, sapa dengan 'Siswa' atau 'Teman'. DILARANG KERAS mengarang nama, menebak nama, atau menyebut diri Anda dengan nama tertentu.
     2. Jika dokumen (RAG) menampilkan beberapa jurusan, sebutkan semua jurusan tersebut kepada pengguna dan jelaskan perbedaan fokusnya agar pengguna bisa memilih.
     3. Jika alat pencarian RAG mengembalikan lebih dari satu jurusan (misal: Sosiologi dan Antropologi), Anda wajib menyebutkan semuanya dan menjelaskan perbedaan fokusnya kepada siswa.
+    4. Jika pengguna mengetikkan kata-kata acak yang tidak bermakna (gibberish/keyboard mashing seperti 'asdfg' atau 'test123'), kamu WAJIB menolak untuk memprosesnya. Balas dengan sopan: 'Maaf, saya tidak dapat memahami pesan Anda. Silakan ketikkan pertanyaan atau ceritakan minat Anda dengan kalimat yang jelas.' Jangan memanggil alat (tool) apapun untuk input acak.
         """
 
         model = genai.GenerativeModel(
@@ -328,6 +329,10 @@ if user_input:
         
     if len(user_input) > MAX_CHARS:
         st.warning(f"⚠️ Pesan terlalu panjang! Batas maksimal adalah {MAX_CHARS} karakter. Pesan Anda berisi {len(user_input)} karakter. Tolong ringkas pertanyaan Anda.")
+        st.stop()
+
+    if re.search(r'(.+)\1{4,}', user_input):
+        st.warning("⚠️ Sistem mendeteksi pola ketikan acak/berulang. Mohon gunakan bahasa yang jelas.")
         st.stop()
         
     with st.chat_message("human"):
